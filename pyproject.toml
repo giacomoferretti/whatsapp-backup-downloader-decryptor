@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "wabdd"
-version = "0.1.0"
+version = "0.1.1"
 description = "WhatsApp Backup Google Drive Downloader Decryptor"
 authors = ["Giacomo Ferretti <giacomo.ferretti.00@gmail.com>"]
 readme = "README.md"
