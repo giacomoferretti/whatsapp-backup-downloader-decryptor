@@ -1,0 +1,7 @@
+click==8.1.7
+gpsoauth==1.1.1
+requests==2.32.3
+inquirer==3.4.0
+rich==13.9.4
+wa-crypt-tools @ git+https://github.com/ElDavoo/wa-crypt-tools@cf490fc599a08563d040ab94c96678a9ae1a4f48
+pycryptodomex==3.21.0
