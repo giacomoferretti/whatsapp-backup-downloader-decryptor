@@ -1,5 +1,7 @@
 # WhatsApp Backup Google Driver Downloader Decryptor
 
+![PyPI - Version](https://img.shields.io/pypi/v/wabdd?color=green)
+
 ## Usage
 
 ### Using PyPi
