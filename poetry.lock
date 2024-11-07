@@ -482,22 +482,18 @@ version = "0.1.0"
 description = "Manages WhatsApp .crypt12, .crypt14 and .crypt15 files, given the key."
 optional = false
 python-versions = ">=3.8"
-files = []
-develop = false
+files = [
+    {file = "wa_crypt_tools-0.1.0-py3-none-any.whl", hash = "sha256:79dc754afe96be2a9091494b067d99da3a7d6308be6afb1827e7ecd703527910"},
+    {file = "wa_crypt_tools-0.1.0.tar.gz", hash = "sha256:13f93694ac650715039df6de10b1c18b7b0c2f74fe050277ccf1e1e211af889e"},
+]
 
 [package.dependencies]
 javaobj-py3 = ">=0.4.4"
-protobuf = ">=5.27.3,<5.29.0"
+protobuf = ">=5.27.3,<5.28.0"
 pycryptodomex = ">=3.20.0"
 
 [package.extras]
 proto = ["protoletariat"]
-
-[package.source]
-type = "git"
-url = "https://github.com/ElDavoo/wa-crypt-tools"
-reference = "HEAD"
-resolved_reference = "cf490fc599a08563d040ab94c96678a9ae1a4f48"
 
 [[package]]
 name = "wcwidth"
@@ -524,4 +520,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8.1"
-content-hash = "da2ebacbfaef3882b87ea2e97aea2ce1fed441a23c093b8e07a1637c4f77739e"
+content-hash = "7c27daef89234e3d1df212ecb2434ba1b137c6a4978eb34ad031cef7466a0d80"
