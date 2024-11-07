@@ -15,12 +15,101 @@
 import pathlib
 import sys
 import zlib
+from queue import Queue
+from threading import Event, Thread
 
 import click
 from Cryptodome.Cipher import AES
+from rich.console import Group
+from rich.live import Live
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TaskID,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from wa_crypt_tools.lib.db.dbfactory import DatabaseFactory
 from wa_crypt_tools.lib.key.key15 import Key15
 from wa_crypt_tools.lib.utils import encryptionloop, mcrypt1_metadata_decrypt
+
+_sentinel = object()
+_stop_event = Event()
+
+
+class DecryptionWorker(Thread):
+    def __init__(
+        self,
+        queue: Queue,
+        output: pathlib.Path,
+        overall_progress: tuple[Progress, TaskID],
+        key: Key15,
+    ):
+        super().__init__()
+        self.queue = queue
+        self.output = output
+        self.overall_progress = overall_progress[0]
+        self.overall_task = overall_progress[1]
+        self.key = key
+
+        self.is_running = True
+
+    def run(self):
+        while self.is_running:
+            self.task_id = None
+
+            if _stop_event.is_set():
+                self.is_running = False
+                return
+
+            try:
+                # Get a file from the queue
+                task = self.queue.get()
+
+                # Check if we're done
+                if task is _sentinel:
+                    self.is_running = False
+                    return
+
+                folder, file = task
+                self.ERROR_FOLDER = folder
+                self.ERROR_FILE = file
+
+                # Decrypt file
+                if file.suffix == ".mcrypt1":
+                    output_file, decrypted_data = decrypt_mcrypt1_file(
+                        folder, file, self.key
+                    )
+                elif file.suffix == ".crypt15":
+                    output_file, decrypted_data = decrypt_crypt15_file(
+                        folder, file, self.key
+                    )
+                else:
+                    # Copy unsupported files
+                    output_file = file
+                    decrypted_data = output_file.read_bytes()
+
+                # Write decrypted data to output file
+                (self.output / output_file).parent.mkdir(parents=True, exist_ok=True)
+                with open(self.output / output_file, "wb") as f:
+                    f.write(decrypted_data)
+
+            except Exception as e:
+                print(self.ERROR_FILE, self.ERROR_FOLDER)
+                self.overall_progress.console.print(f"Error: {e}")
+                self.is_running = False
+            finally:
+                # Update overall progress
+                if self.is_running:
+                    self.overall_progress.update(
+                        self.overall_task,
+                        advance=1,
+                    )
+
+                # Indicate task completion
+                self.queue.task_done()
 
 
 def decrypt_metadata(metadata_file: pathlib.Path, key: Key15):
@@ -122,8 +211,9 @@ def decrypt(ctx, key, key_file):
 @decrypt.command(name="dump")
 @click.argument("folder", type=click.Path(exists=True))
 @click.option("--output", help="Output directory", default=None)
+@click.option("--threads", help="Number of threads to use", default=2)
 @click.pass_obj
-def cmd_decrypt_dump(obj, folder, output):
+def cmd_decrypt_dump(obj, folder, output, threads):
     key = obj
     folder = pathlib.Path(folder)
 
@@ -147,40 +237,77 @@ def cmd_decrypt_dump(obj, folder, output):
             print(f"Error: {folder / path} not found", file=sys.stderr)
             sys.exit(1)
 
+    # 3.96s user 2.98s system 95% cpu 7.236 total baseline
+    # 3.91s user 3.01s system 95% cpu 7.251 total n=1
+    # 3.86s user 1.72s system 157% cpu 3.554 total n=2
+    # 4.59s user 2.76s system 209% cpu 3.513 total n=4
     # Decrypt files
-    wabdd_files = ["metadata.json", "files.json"]
-    supported_extensions = [".crypt15", ".mcrypt1", ".mcrypt1-metadata"]
-    already_decrypted = set()
-    for file in folder.glob("**/*"):
-        # Skip folder
-        if file.is_dir():
-            continue
+    queue = Queue()
 
-        # Skip wabdd related files
-        if file.name in wabdd_files:
-            continue
+    download_overall_progress = Progress(
+        SpinnerColumn(),
+        TextColumn("[bold blue]{task.description}", justify="right"),
+        BarColumn(bar_width=None),
+        TextColumn("[yellow]{task.completed}/{task.total}"),
+        TaskProgressColumn(),
+        TimeElapsedColumn(),
+    )
 
-        # Warn if file is not supported
-        if file.suffix not in supported_extensions:
-            print(f"WARNING: Skipping {file}, not supported", file=sys.stderr)
-            continue
+    group = Group(download_overall_progress)
 
-        # Skip already decrypted files
-        if file.name in already_decrypted:
-            print(f"WARNING: Skipping {file}, already decrypted", file=sys.stderr)
-            continue
+    with Live(group):
+        # Prepare queue
+        queue = Queue()
+        wabdd_files = ["metadata.json", "files.json"]
+        supported_extensions = [".crypt15", ".mcrypt1", ".mcrypt1-metadata"]
+        ignored_extensions = [".mcrypt1-metadata"]
+        for file in folder.glob("**/*"):
+            # Skip folder
+            if file.is_dir():
+                continue
 
-        # Decrypt file
-        if file.suffix == ".mcrypt1":
-            output_file, decrypted_data = decrypt_mcrypt1_file(folder, file, key)
+            # Skip wabdd related files
+            if file.name in wabdd_files:
+                continue
 
-        if file.suffix == ".crypt15":
-            output_file, decrypted_data = decrypt_crypt15_file(folder, file, key)
+            # Warn if file is not supported
+            if file.suffix not in supported_extensions:
+                print(f"WARNING: Skipping {file}, not supported", file=sys.stderr)
+                continue
 
-        # Write decrypted data to output file
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(output / output_file, "wb") as f:
-            f.write(decrypted_data)
+            # Skip ignored files
+            if file.suffix in ignored_extensions:
+                continue
 
-        # Add to already decrypted media
-        already_decrypted.add(output_file.name)
+            queue.put((folder, file))
+
+        overall_download_task_id = download_overall_progress.add_task(
+            "Decrypting files...", total=queue.qsize()
+        )
+
+        # Start workers
+        workers = []
+        for _ in range(threads):
+            # Add a sentinel to the queue to indicate the end of the queue
+            queue.put(_sentinel)
+
+            worker = DecryptionWorker(
+                queue,
+                output,
+                (download_overall_progress, overall_download_task_id),
+                key,
+            )
+            worker.start()
+            workers.append(worker)
+
+        # Wait for all workers to finish
+        try:
+            for worker in workers:
+                worker.join()
+        except KeyboardInterrupt:
+            print("Keyboard Interrupt received! Stopping workers...")
+            _stop_event.set()
+
+            # Wait for remaining workers to finish
+            for worker in workers:
+                worker.join()
