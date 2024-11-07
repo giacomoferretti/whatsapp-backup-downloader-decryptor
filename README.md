@@ -2,7 +2,33 @@
 
 ## Usage
 
-### Prerequisites
+### Using PyPi
+
+1. Install the `wabdd` package
+
+    ```shell
+    pip install wabdd
+    ```
+
+2. Get token
+
+    ```shell
+    wabdd token YOUR_GOOGLE@EMAIL.ADDRESS
+    ```
+
+3. Download backup
+
+    ```shell
+    wabdd download --token-file /tokens/YOUR_GOOGLE_EMAIL_ADDRESS_token.txt
+    ```
+
+4. Decrypt backup
+
+    ```shell
+    wabdd decrypt --key-file keys/PHONE_NUMBER_decryption.key dump backups/PHONE_NUMBER_DATE
+    ```
+
+### Prerequisites (only for poetry and docker)
 
 1. Clone repository
 
