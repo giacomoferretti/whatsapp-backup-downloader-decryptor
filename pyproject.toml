@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "wabdd"
+version = "0.1.0"
+description = "WhatsApp Backup Google Drive Downloader Decryptor"
+authors = ["Giacomo Ferretti <giacomo.ferretti.00@gmail.com>"]
+readme = "README.md"
+packages = [{include = "wabdd"}]
+
+[tool.poetry.dependencies]
+python = "^3.8.1"
+click = "^8.1.7"
+gpsoauth = "^1.1.1"
+inquirer = "^3.4.0"
+rich = "^13.9.4"
+wa-crypt-tools = {git = "https://github.com/ElDavoo/wa-crypt-tools"}
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
