@@ -10,6 +10,8 @@ packages = [{include = "wabdd"}]
 python = "^3.8.1"
 click = "^8.1.7"
 gpsoauth = "^1.1.1"
+requests = "^2.32.3"
+pycryptodomex = "^3.21.0"
 inquirer = "^3.4.0"
 rich = "^13.9.4"
 wa-crypt-tools = {git = "https://github.com/ElDavoo/wa-crypt-tools"}
