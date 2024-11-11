@@ -99,11 +99,14 @@ class DownloaderWorker(Thread):
         self.overall_task = overall_progress[1]
         self.client = client
 
+        self.is_running = True
+
     def run(self):
-        while True:
+        while self.is_running:
             self.task_id = None
 
             if _stop_event.is_set():
+                self.is_running = False
                 return
 
             try:
@@ -112,7 +115,7 @@ class DownloaderWorker(Thread):
 
                 # Check if we're done
                 if file is _sentinel:
-                    # self.queue.task_done()
+                    self.is_running = False
                     return
 
                 file_path = file["path"]
@@ -128,7 +131,7 @@ class DownloaderWorker(Thread):
                 # Check if file is already downloaded
                 local_file = self.output / stripped_filepath
                 if local_file.exists():
-                    if get_hash_from_file(local_file) == file_hash:
+                    if get_md5_hash_from_file(local_file) == file_hash:
                         # self.progress.console.print(f"Skipping {file_name}")
                         continue
 
@@ -172,16 +175,18 @@ class DownloaderWorker(Thread):
 
             except Exception as e:
                 self.progress.console.print(f"Error: {e}")
+                self.is_running = False
             finally:
                 # Stop the download progress task
                 if hasattr(self, "task_id") and self.task_id is not None:
                     self.progress.remove_task(self.task_id)
 
                 # Update overall progress
-                self.overall_progress.update(
-                    self.overall_task,
-                    advance=1,
-                )
+                if self.is_running:
+                    self.overall_progress.update(
+                        self.overall_task,
+                        advance=1,
+                    )
 
                 # Indicate task completion
                 self.queue.task_done()
