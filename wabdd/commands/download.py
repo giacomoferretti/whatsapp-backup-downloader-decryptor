@@ -141,7 +141,9 @@ class DownloaderWorker(Thread):
                 )
 
                 # Download the file
-                with self.client.download(file_path) as r:
+                # Out of 89 sticker files in my backup, 44 contained a "+" character in the filename, which the requests lib interpretes as a whitespace it seems.
+                file_path_partially_escaped = file_path.replace('+', '%2B')
+                with self.client.download(file_path_partially_escaped) as r:
                     if r.status_code == 401:
                         self.progress.console.print(
                             "Token expired, stopping download",
