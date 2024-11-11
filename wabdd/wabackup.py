@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from urllib.parse import quote
+
 import requests
 
 from .constants import USER_AGENT
@@ -22,6 +24,7 @@ class WaBackup:
         self.auth = auth
 
     def _get(self, path, params=None, **kwargs):
+        path = quote(path)
         r = requests.get(
             f"https://backup.googleapis.com/v1/{path}",
             headers={
@@ -41,12 +44,9 @@ class WaBackup:
         ).json()
 
     def download(self, path):
-        return requests.get(
-            f"https://backup.googleapis.com/v1/{path}?alt=media",
-            headers={
-                "Authorization": f"Bearer {self.auth}",
-                "User-Agent": USER_AGENT,
-            },
+        return self._get(
+            path,
+            params={"alt": "media"},
             stream=True,
         )
 
