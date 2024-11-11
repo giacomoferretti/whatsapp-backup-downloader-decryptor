@@ -97,7 +97,9 @@ class DecryptionWorker(Thread):
                     f.write(decrypted_data)
 
             except Exception as e:
-                print(self.ERROR_FILE, self.ERROR_FOLDER)
+                self.overall_progress.console.print(
+                    f"Error in {self.ERROR_FOLDER} {self.ERROR_FILE}"
+                )
                 self.overall_progress.console.print(f"Error: {e}")
                 self.is_running = False
             finally:
