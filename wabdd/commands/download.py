@@ -43,7 +43,7 @@ from rich.progress import (
 from rich.text import Text
 
 from ..constants import BACKUP_FOLDER
-from ..utils import crop_string, get_hash_from_file, sizeof_fmt
+from ..utils import crop_string, get_md5_hash_from_file, sizeof_fmt
 from ..wabackup import WaBackup
 
 
