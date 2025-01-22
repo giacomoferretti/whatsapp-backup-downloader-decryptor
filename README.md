@@ -35,7 +35,7 @@
     or with filters (e.g. excluding videos)
 
     ```shell
-    wabdd download --exclude-path "Media/WhatsApp Videos" --token-file /tokens/YOUR_GOOGLE_EMAIL_ADDRESS_token.txt
+    wabdd download --exclude "Media/WhatsApp Video/*" --token-file /tokens/YOUR_GOOGLE_EMAIL_ADDRESS_token.txt
 
 4. Decrypt backup (only if end-to-end encryption is enabled)
 
