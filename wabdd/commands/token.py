@@ -56,14 +56,33 @@ def token(token_file, android_id, email):
     master_token = master_response["Token"]
 
     # Perform the oauth login for com.whatsapp
-    auth_response = gpsoauth.perform_oauth(
-        email,
-        master_token,
-        android_id,
-        service="oauth2:https://www.googleapis.com/auth/drive.appdata",
-        app="com.whatsapp",
-        client_sig="38a0f7d505fe18fec64fbf343ecaaaf310dbd799",
-    )
+    # auth_response = gpsoauth.perform_oauth(
+    #     email,
+    #     master_token,
+    #     android_id,
+    #     service="oauth2:https://www.googleapis.com/auth/drive.appdata",
+    #     app="com.whatsapp",
+    #     client_sig="38a0f7d505fe18fec64fbf343ecaaaf310dbd799",
+    # )
+
+    # FIXME: Remove this when fixed upstream
+    # https://github.com/B16f00t/whapa/issues/228#issuecomment-2608062669
+    oauth_data = {
+        "accountType": "HOSTED_OR_GOOGLE",
+        "has_permission": 1,
+        "Token": master_token,
+        "service": "oauth2:https://www.googleapis.com/auth/drive.appdata",
+        "source": "android",
+        "androidId": android_id,
+        "app": "com.whatsapp",
+        "client_sig": "38a0f7d505fe18fec64fbf343ecaaaf310dbd799",
+        "device_country": "us",
+        "operatorCountry": "us",
+        "lang": "en",
+        "sdk_version": 17,
+        "google_play_services_version": 240913000,
+    }
+    auth_response = gpsoauth._perform_auth_request(oauth_data, None)
 
     # Check if the login was successful
     if "Auth" not in auth_response:
