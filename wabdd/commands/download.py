@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import base64
+import fnmatch
 import json
 import pathlib
 import sys
@@ -41,6 +42,8 @@ from rich.progress import (
     TransferSpeedColumn,
 )
 from rich.text import Text
+from wa_crypt_tools.lib.key.key15 import Key15
+from wa_crypt_tools.lib.utils import mcrypt1_metadata_decrypt
 
 from ..constants import BACKUP_FOLDER
 from ..utils import crop_string, get_md5_hash_from_file, sizeof_fmt
@@ -90,6 +93,8 @@ class DownloaderWorker(Thread):
         progress: Progress,
         overall_progress: tuple[Progress, TaskID],
         client: WaBackup,
+        exclude_pattern: list[str] = None,
+        decryption_key: Key15 = None,
     ):
         super().__init__()
         self.queue = queue
@@ -98,6 +103,8 @@ class DownloaderWorker(Thread):
         self.overall_progress = overall_progress[0]
         self.overall_task = overall_progress[1]
         self.client = client
+        self.exclude_pattern = exclude_pattern
+        self.decryption_key = decryption_key
 
         self.is_running = True
 
@@ -127,6 +134,23 @@ class DownloaderWorker(Thread):
                 # Strip first 5 components of the path
                 # (e.g. clients/wa/backups/00000/files)
                 stripped_filepath = pathlib.Path(*file_path.split("/")[5:])
+
+                # Decrypt metadata if available
+                real_path = stripped_filepath
+                if self.decryption_key and metadata:
+                    decrypted_metadata = mcrypt1_metadata_decrypt(
+                        key=self.decryption_key, encoded=metadata
+                    )
+                    real_path = decrypted_metadata.get("name")
+
+                # Check if file should be excluded
+                if self.exclude_pattern:
+                    for pattern in self.exclude_pattern:
+                        if fnmatch.fnmatch(real_path, pattern):
+                            self.progress.console.print(
+                                f"Skipping {real_path} (excluded)"
+                            )
+                            continue
 
                 # Check if file is already downloaded
                 local_file = self.output / stripped_filepath
@@ -202,16 +226,49 @@ class DownloaderWorker(Thread):
     is_flag=True,
     default=False,
 )
-def download(token_file, output, threads, save_files_list):
+@click.option(
+    "--save-backup-metadata",
+    help="Save backup metadata to metadata.json",
+    is_flag=True,
+    default=True,
+)
+@click.option(
+    "--exclude",
+    "exclude_pattern",
+    help="Exclude files matching the given pattern",
+    multiple=True,
+)
+@click.option(
+    "--decryption-key-file", help="Key file to use for decryption", default=None
+)
+def download(
+    token_file,
+    output,
+    threads,
+    save_files_list,
+    save_backup_metadata,
+    exclude_pattern,
+    decryption_key_file,
+):
     # Check for token
     if not pathlib.Path(token_file).exists():
         print(f"Token file {token_file} not found", file=sys.stderr)
-        print(f"Run `wabdd token` to generate a token", file=sys.stderr)
+        print("Run `wabdd token` to generate a token", file=sys.stderr)
         sys.exit(1)
 
     # Load token
     with open(token_file) as f:
         token = f.read().strip()
+
+    # Load decryption key
+    decryption_key = None
+    if decryption_key_file:
+        with open(decryption_key_file, "r") as f:
+            key_bytes = bytes.fromhex(f.read())
+            if len(key_bytes) != 32:
+                raise ValueError("Key must be 32 bytes long")
+
+            decryption_key = Key15(key_bytes)
 
     # Initialize client
     wa = WaBackup(token)
@@ -260,6 +317,14 @@ def download(token_file, output, threads, save_files_list):
         backup = backups[0]
     backup_metadata = json.loads(backup["metadata"])
 
+    # Build exclude pattern
+    is_encrypted_backup = backup_metadata.get("encryptedBackupEnabled", False)
+    if len(exclude_pattern) > 0 and is_encrypted_backup and decryption_key is None:
+        print(
+            "WARNING: --exclude patterns will not work with encrypted backups without a decryption key. Please provide the decryption key file with --decryption-key-file",
+            file=sys.stderr,
+        )
+
     # Print backup information
     print(f"Backup: {backup['name'].split('/')[-1]} ({backup['updateTime']})")
     print(" - Total size:", sizeof_fmt(backup_metadata["backupSize"]))
@@ -277,8 +342,9 @@ def download(token_file, output, threads, save_files_list):
     output.mkdir(parents=True, exist_ok=True)
 
     # Write metadata
-    with open(output / "metadata.json", "w") as f:
-        json.dump(backup_metadata, f, separators=(",", ":"))
+    if save_backup_metadata:
+        with open(output / "metadata.json", "w") as f:
+            json.dump(backup_metadata, f, separators=(",", ":"))
 
     print("Downloading to", output)
 
@@ -425,6 +491,8 @@ def download(token_file, output, threads, save_files_list):
                 download_progress,
                 (download_overall_progress, overall_download_task_id),
                 wa,
+                exclude_pattern,
+                decryption_key,
             )
             worker.start()
             workers.append(worker)
@@ -458,3 +526,5 @@ def download(token_file, output, threads, save_files_list):
             advance=1,
             description=f"FINISHED! ({current_step+1}/{len(steps)})",
         )
+
+    print(f"You can now run `wabdd decrypt --key-file YOUR_KEY_FILE dump {output}`")
