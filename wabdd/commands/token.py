@@ -66,11 +66,11 @@ def token(token_file, android_id, email):
     )
 
     # Check if the login was successful
-    token = auth_response["Auth"]
     if "Auth" not in auth_response:
         print(auth_response, file=sys.stderr)
         sys.exit(1)
 
+    token = auth_response["Auth"]
     print(f"Your token is: {token}")
 
     # Save the token to a file
