@@ -12,9 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import pathlib
 import sys
 import zlib
+from datetime import datetime
 from queue import Queue
 from threading import Event, Thread
 
@@ -79,15 +81,16 @@ class DecryptionWorker(Thread):
 
                 # Decrypt file
                 if file.suffix == ".mcrypt1":
-                    output_file, decrypted_data = decrypt_mcrypt1_file(
+                    output_file, decrypted_data, file_timestamp = decrypt_mcrypt1_file(
                         folder, file, self.key
                     )
                 elif file.suffix == ".crypt15":
-                    output_file, decrypted_data = decrypt_crypt15_file(
+                    output_file, decrypted_data, file_timestamp = decrypt_crypt15_file(
                         folder, file, self.key
                     )
                 else:
                     # Copy unsupported files
+                    self.overall_progress.console.print(f"Unsupported file: {file}")
                     output_file = file
                     decrypted_data = output_file.read_bytes()
 
@@ -95,6 +98,11 @@ class DecryptionWorker(Thread):
                 (self.output / output_file).parent.mkdir(parents=True, exist_ok=True)
                 with open(self.output / output_file, "wb") as f:
                     f.write(decrypted_data)
+
+                # Update file timestamp
+                if file_timestamp:
+                    timestamp = file_timestamp.timestamp()
+                    os.utime((self.output / output_file), (timestamp, timestamp))
 
             except Exception as e:
                 self.overall_progress.console.print(
@@ -121,7 +129,7 @@ def decrypt_metadata(metadata_file: pathlib.Path, key: Key15):
 
 def decrypt_mcrypt1_file(
     dump_folder: pathlib.Path, encrypted_file: pathlib.Path, key: Key15
-) -> tuple[pathlib.Path, bytes]:
+) -> tuple[pathlib.Path, bytes, datetime]:
     # Get filename without `.mcrypt1` extension and convert to bytes
     decryption_hash = bytes.fromhex(encrypted_file.with_suffix("").name)
     decryption_data = encryptionloop(
@@ -143,12 +151,16 @@ def decrypt_mcrypt1_file(
         output_file = pathlib.Path(metadata["name"])
 
     with open(encrypted_file, "rb") as f:
-        return output_file, cipher.decrypt(f.read())
+        return (
+            output_file,
+            cipher.decrypt(f.read()),
+            datetime.fromisoformat(metadata["updateTime"]),
+        )
 
 
 def decrypt_crypt15_file(
     dump_folder: pathlib.Path, encrypted_file: pathlib.Path, key: Key15
-) -> tuple[pathlib.Path, bytes]:
+) -> tuple[pathlib.Path, bytes, datetime]:
     output_file = encrypted_file.relative_to(dump_folder)
 
     # Remove .crypt15 extension
@@ -172,7 +184,7 @@ def decrypt_crypt15_file(
     except zlib.error:
         decrypted_data = decrypted_data
 
-    return output_file, decrypted_data
+    return output_file, decrypted_data, None
 
 
 @click.group()
