@@ -1,7 +1,0 @@
-click==8.1.8
-gpsoauth==1.1.1
-requests==2.32.3
-inquirer==3.4.0
-rich==13.9.4
-wa-crypt-tools==0.1.0
-pycryptodomex==3.21.0
