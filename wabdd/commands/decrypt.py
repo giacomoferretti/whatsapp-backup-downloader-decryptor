@@ -16,9 +16,12 @@ import os
 import pathlib
 import sys
 import zlib
+import re
 from datetime import datetime
 from queue import Queue
 from threading import Event, Thread
+from urllib.parse import unquote
+from typing import Union
 
 import click
 from Cryptodome.Cipher import AES
@@ -126,6 +129,39 @@ def decrypt_metadata(metadata_file: pathlib.Path, key: Key15):
     with open(metadata_file) as f:
         return mcrypt1_metadata_decrypt(key=key, encoded=f.read())
 
+def fix_filename(txt: Union[str, pathlib.Path]) -> str:
+    if txt is None or txt == '':
+        return ''
+
+    decoded = str(txt)
+    if '%' in decoded:
+        decoded = decoded.replace('%2B', '§PLUS§')
+        decoded = unquote(decoded)
+        decoded = decoded.replace('+', ' ')
+        decoded = decoded.replace('§PLUS§', '+')
+
+    if not decoded or set(decoded) <= {' ', '+'}:
+        if all(c == '+' for c in decoded):
+            return decoded.replace('+', '')
+        return ''
+
+    FILLER = '-'
+    EXCLUDED_CHRS = set(r'<>:"/\|?*\0')
+    DEVICE_NAMES = {'CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4',
+                    'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2',
+                    'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9',
+                    'CONIN$', 'CONOUT$', '..', '.'}
+
+    result = ''.join(x if x not in EXCLUDED_CHRS and (ord(x) >= 32 or ord(x) > 127) else FILLER for x in decoded)
+
+    if result.upper() in DEVICE_NAMES:
+        result = f'-{result}-'
+
+    result = result[:255]
+    result = re.sub(r'^[. ]', FILLER, result)
+    result = re.sub(r'[. ]$', FILLER, result)
+
+    return result if result else ''
 
 def decrypt_mcrypt1_file(
     dump_folder: pathlib.Path, encrypted_file: pathlib.Path, key: Key15
@@ -149,6 +185,7 @@ def decrypt_mcrypt1_file(
     if metadata_file.is_file():
         metadata = decrypt_metadata(metadata_file, key)
         output_file = pathlib.Path(metadata["name"])
+        output_file = fix_filename(output_file)
 
     with open(encrypted_file, "rb") as f:
         return (
@@ -165,6 +202,7 @@ def decrypt_crypt15_file(
 
     # Remove .crypt15 extension
     output_file = output_file.with_suffix("")
+    output_file = fix_filename(output_file)
 
     # Open .crypt15 file
     with open(encrypted_file, "rb") as f:
