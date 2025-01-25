@@ -12,9 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pathlib
+import platform
 from . import __version__
 
 BACKUP_FOLDER = "backups"
 TOKENS_FOLDER = "tokens"
 TOKEN_SUFFIX = "_token.txt"
+
+DEFAULT_OUTPUT_PATH = pathlib.Path(f"{TOKENS_FOLDER}/oauth{TOKEN_SUFFIX}")
+
+SYSTEM = platform.system()
+
+BROWSER_PATHS = {
+    "Windows": {
+        "chrome": {
+            "user_data": "C:\\Users\\%USERNAME%\\AppData\\Local\\Google\\Chrome\\User Data",
+            "executable": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+        },
+        "brave": {
+            "user_data": "C:\\Users\\%USERNAME%\\AppData\\Local\\BraveSoftware\\Brave-Browser\\User Data",
+            "executable": "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
+        },
+        "edge": {
+            "user_data": "C:\\Users\\%USERNAME%\\AppData\\Local\\Microsoft\\Edge\\User Data",
+            "executable": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"
+        }
+    }
+}
+
 USER_AGENT = f"wagdd/{__version__}"
