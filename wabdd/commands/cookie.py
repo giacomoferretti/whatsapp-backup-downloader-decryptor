@@ -13,68 +13,83 @@
 # limitations under the License.
 
 import os
+import time
+
 import click
 import pathlib
+
+from cli.constants import DEFAULT_OUTPUT_PATH, BROWSER_PATHS, SELECTORS
 from typing import Optional
 from playwright.sync_api import sync_playwright
-from wabdd.constants import SYSTEM, BROWSER_PATHS, DEFAULT_OUTPUT_PATH
 
 class GoogleAuthClient:
-    def __init__(self, browser_name: str = "chrome"):
-        browser_config = BROWSER_PATHS.get(SYSTEM, {}).get(browser_name.lower())
-        if not browser_config:
-            raise ValueError(f"Unsupported browser: {browser_name} on {SYSTEM}")
-
-        self.user_data_dir = os.path.expandvars(browser_config["user_data"])
-        self.executable_path = os.path.expandvars(browser_config["executable"])
+    def __init__(self):
+        self.chrome_path = os.path.expandvars(BROWSER_PATHS["Windows"]["chrome"]["executable"])
 
     def get_oauth_token(self, email: str, password: str) -> Optional[str]:
         with sync_playwright() as playwright:
-            browser_context = playwright.chromium.launch_persistent_context(
-                user_data_dir=self.user_data_dir,
-                executable_path=self.executable_path,
+            browser = playwright.chromium.launch(
                 headless=False,
-                args=["--disable-blink-features=AutomationControlled"]
+                executable_path=self.chrome_path,
+                args=['--disable-blink-features=AutomationControlled']
             )
 
-            page = browser_context.new_page()
+            context = browser.new_context()
+            page = context.new_page()
+
             page.goto("https://accounts.google.com/EmbeddedSetup",
                       wait_until="networkidle",
                       timeout=60000)
 
             page.wait_for_load_state("networkidle")
 
-            email_input = page.wait_for_selector("#identifierId")
+            email_input = page.wait_for_selector(SELECTORS['email_input'])
             if email_input and email_input.is_enabled():
                 email_input.fill(email)
 
-
-            next_button = page.wait_for_selector("#identifierNext > div > button > div.VfPpkd-RLmnJb")
+            next_button = page.wait_for_selector(SELECTORS['email_next'])
             if next_button and next_button.is_enabled():
                 next_button.click()
 
             page.wait_for_load_state("networkidle")
 
-            password_input = page.wait_for_selector("#password > div.aCsJod.oJeWuf > div > div.Xb9hP > input")
+            password_input = page.wait_for_selector(SELECTORS['password_input'])
             if password_input and password_input.is_enabled():
                 password_input.fill(password)
 
-            password_next = page.wait_for_selector("#passwordNext > div > button > div.VfPpkd-RLmnJb")
+            password_next = page.wait_for_selector(SELECTORS['password_next'])
             if password_next and password_next.is_enabled():
                 password_next.click()
 
-            page.wait_for_load_state("networkidle")
+            try:
+                two_step = page.wait_for_selector(SELECTORS['two_step'], timeout=3000)
+                two_step_code = page.wait_for_selector(SELECTORS['two_step_code'], timeout=3000)
 
-            consent_next = page.wait_for_selector("#signinconsentNext > div > button > span")
+                if two_step or two_step_code:
+                    start_time = time.time()
+                    timeout = 60
+
+                    while time.time() - start_time < timeout:
+                        try:
+                            consent_next = page.wait_for_selector(SELECTORS['consent_next'],
+                                                                  timeout=1000)
+                            if consent_next and consent_next.is_visible():
+                                break
+                        except:
+                            time.sleep(1)
+            except:
+                pass
+
+            consent_next = page.wait_for_selector(SELECTORS['consent_next'])
             if consent_next and consent_next.is_enabled():
                 consent_next.click()
 
             page.wait_for_timeout(3000)
 
-            cookies = browser_context.cookies()
+            cookies = context.cookies()
             oauth_token = next((c["value"] for c in cookies if c["name"] == "oauth_token"), None)
 
-            browser_context.close()
+            browser.close()
             return oauth_token
 
 
@@ -82,9 +97,8 @@ class GoogleAuthClient:
 @click.argument("email")
 @click.option('--password', '-p', help='Google account password', required=True)
 @click.option('--output', '-o', help='Output file path', default=str(DEFAULT_OUTPUT_PATH))
-@click.option('--browser', '-b', help='Browser to use (chrome/brave/edge)', default="chrome")
-def cookie(email: str, password: str, output: str, browser: str):
-    client = GoogleAuthClient(browser)
+def cookie(email: str, password: str, output: str):
+    client = GoogleAuthClient()
 
     try:
         oauth_token = client.get_oauth_token(email, password)
