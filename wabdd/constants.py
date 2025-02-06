@@ -27,18 +27,19 @@ SYSTEM = platform.system()
 BROWSER_PATHS = {
     "Windows": {
         "chrome": {
-            "user_data": "C:\\Users\\%USERNAME%\\AppData\\Local\\Google\\Chrome\\User Data",
-            "executable": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
-        },
-        "brave": {
-            "user_data": "C:\\Users\\%USERNAME%\\AppData\\Local\\BraveSoftware\\Brave-Browser\\User Data",
-            "executable": "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
-        },
-        "edge": {
-            "user_data": "C:\\Users\\%USERNAME%\\AppData\\Local\\Microsoft\\Edge\\User Data",
-            "executable": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"
+            "executable": "%USERPROFILE%\\AppData\\Local\\ms-playwright\\chrome-win\\chrome.exe",
         }
     }
+}
+
+SELECTORS = {
+    'email_input': '[type="email"], #identifierId, [name="identifier"]',
+    'email_next': '#identifierNext button, [name="identifier_next"]',
+    'password_input': '[type="password"], [name="password"]',
+    'password_next': '#passwordNext button, [name="password_next"]',
+    'two_step': '[jsname="bN97Pc"], .aDGQwe[data-use-configureable-escape-action="true"]',
+    'two_step_code': '.fD1Pid[jsname="feLNVc"]',
+    'consent_next': '#signinconsentNext button, [name="consent_next"]'
 }
 
 USER_AGENT = f"wagdd/{__version__}"
