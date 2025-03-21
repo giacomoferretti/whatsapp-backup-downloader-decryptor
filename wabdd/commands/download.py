@@ -275,11 +275,21 @@ def download(
 
     # Get backups
     try:
-        backups = list(wa.get_backups())
+        _backups = list(wa.get_backups())
     except requests.exceptions.HTTPError as e:
         print(f"Error: {e}")
         print("Run `wabdd token` to generate a new token", file=sys.stderr)
         sys.exit(1)
+
+    # Filter out backups that are still uploading
+    backups = []
+    for backup in _backups:
+        if "activeTransactionId" in backup:
+            print(f"Backup {backup['name']} is still uploading, skipping")
+            print(json.dumps(backup, indent=2))
+            continue
+
+        backups.append(backup)
 
     if len(backups) == 0:
         print("No backups found")
@@ -287,8 +297,7 @@ def download(
 
     if len(backups) > 1:
         for i, backup in enumerate(backups):
-            backup_metadata = json.loads(backup["metadata"])
-            print(f"Backup {i+1}: {backup['name']} ({backup['updateTime']})")
+            print(f"Backup {i + 1}: {backup['name']} ({backup['updateTime']})")
 
         print("Multiple backups found, please specify which one to download")
 
@@ -298,7 +307,7 @@ def download(
                 message="Which backup do you want to download?",
                 choices=[
                     (
-                        f"Backup {i+1}: {backup['name'].split('/')[-1]} ({backup['updateTime']})",
+                        f"Backup {i + 1}: {backup['name'].split('/')[-1]} ({backup['updateTime']})",
                         backup,
                     )
                     for i, backup in enumerate(backups)
@@ -315,7 +324,18 @@ def download(
         backup = answers["backup"]
     else:
         backup = backups[0]
-    backup_metadata = json.loads(backup["metadata"])
+
+    # Get backup metadata
+    backup_metadata = json.loads(
+        backup.get(
+            "metadata",
+            {
+                "encryptedBackupEnabled": False,
+                "backupSize": 0,
+                "chatdbSize": 0,
+            },
+        )
+    )
 
     # Build exclude pattern
     is_encrypted_backup = backup_metadata.get("encryptedBackupEnabled", False)
@@ -336,7 +356,7 @@ def download(
         output = (
             pathlib.Path.cwd()
             / BACKUP_FOLDER
-            / f'{backup["name"].split("/")[-1]}_{timestamp.strftime("%Y%m%d")}'
+            / f"{backup['name'].split('/')[-1]}_{timestamp.strftime('%Y%m%d')}"
         )
 
     output.mkdir(parents=True, exist_ok=True)
@@ -403,7 +423,7 @@ def download(
         # Retrieve the list of files
         overall_progress.update(
             overall_task_id,
-            description=f"{steps[current_step]} ({current_step+1}/{len(steps)})",
+            description=f"{steps[current_step]} ({current_step + 1}/{len(steps)})",
         )
         task_id = file_retrieval_progress.add_task(
             "Retrieving list of files...", total=int(backup["sizeBytes"])
@@ -443,7 +463,7 @@ def download(
         # Prepare directories
         overall_progress.update(
             overall_task_id,
-            description=f"{steps[current_step]} ({current_step+1}/{len(steps)})",
+            description=f"{steps[current_step]} ({current_step + 1}/{len(steps)})",
         )
         already_created = set()
         for file in files:
@@ -469,7 +489,7 @@ def download(
         # Download files
         overall_progress.update(
             overall_task_id,
-            description=f"{steps[current_step]} ({current_step+1}/{len(steps)})",
+            description=f"{steps[current_step]} ({current_step + 1}/{len(steps)})",
         )
 
         overall_download_task_id = download_overall_progress.add_task(
@@ -524,7 +544,7 @@ def download(
         overall_progress.update(
             overall_task_id,
             advance=1,
-            description=f"FINISHED! ({current_step+1}/{len(steps)})",
+            description=f"FINISHED! ({current_step + 1}/{len(steps)})",
         )
 
     print(f"You can now run `wabdd decrypt --key-file YOUR_KEY_FILE dump {output}`")
