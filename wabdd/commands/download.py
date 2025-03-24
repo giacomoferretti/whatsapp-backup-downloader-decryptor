@@ -218,6 +218,7 @@ class DownloaderWorker(Thread):
 
 @click.command(name="download")
 @click.option("--token-file", help="Token file", default=None)
+@click.option("--master-token", help="Master token file", default=None)
 @click.option("--output", help="Output directory")
 @click.option("--threads", help="Number of threads to use", default=8)
 @click.option(
@@ -242,23 +243,43 @@ class DownloaderWorker(Thread):
     "--decryption-key-file", help="Key file to use for decryption", default=None
 )
 def download(
-    token_file,
-    output,
-    threads,
-    save_files_list,
-    save_backup_metadata,
-    exclude_pattern,
-    decryption_key_file,
+    token_file: str,
+    master_token: str,
+    output: str,
+    threads: int,
+    save_files_list: bool,
+    save_backup_metadata: bool,
+    exclude_pattern: bool,
+    decryption_key_file: str,
 ):
-    # Check for token
-    if not pathlib.Path(token_file).exists():
-        print(f"Token file {token_file} not found", file=sys.stderr)
-        print("Run `wabdd token` to generate a token", file=sys.stderr)
+    # Check for token file or master token
+    if not token_file and not master_token:
+        print("Please provide a token file or a master token", file=sys.stderr)
         sys.exit(1)
 
-    # Load token
-    with open(token_file) as f:
-        token = f.read().strip()
+    # Check for token
+    if token_file:
+        if not pathlib.Path(token_file).exists():
+            print(f"Token file {token_file} not found", file=sys.stderr)
+            print("Run `wabdd token` to generate a token", file=sys.stderr)
+            sys.exit(1)
+
+        # Load token
+        with open(token_file) as f:
+            token = f.read().strip()
+    else:
+        token = None
+
+    # Check for master token
+    if master_token:
+        if not pathlib.Path(master_token).exists():
+            print(f"Master token file {master_token} not found", file=sys.stderr)
+            print("Run `wabdd token` to generate a master token", file=sys.stderr)
+            sys.exit(1)
+
+        # Load master token
+        with open(master_token) as f:
+            master_token = f.read().strip()
 
     # Load decryption key
     decryption_key = None
@@ -271,7 +292,7 @@ def download(
             decryption_key = Key15(key_bytes)
 
     # Initialize client
-    wa = WaBackup(token)
+    wa = WaBackup(token, master_token)
 
     # Get backups
     try:
