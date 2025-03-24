@@ -34,7 +34,7 @@ class WaBackup:
             params=params,
             **kwargs,
         )
-        r.raise_for_status()
+
         return r
 
     def _get_page(self, path, page_token=None):
