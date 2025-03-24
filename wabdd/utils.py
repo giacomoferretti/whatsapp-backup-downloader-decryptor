@@ -18,7 +18,7 @@ import random
 
 
 # https://stackoverflow.com/questions/1094841/
-def sizeof_fmt(num: int, suffix="B"):
+def sizeof_fmt(num: float, suffix="B"):
     for unit in ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"]:
         if abs(num) < 1024.0:
             return "%3.1f%s%s" % (num, unit, suffix)
