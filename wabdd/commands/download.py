@@ -329,11 +329,13 @@ def download(
     backup_metadata = json.loads(
         backup.get(
             "metadata",
-            {
-                "encryptedBackupEnabled": False,
-                "backupSize": 0,
-                "chatdbSize": 0,
-            },
+            json.dumps(
+                {
+                    "encryptedBackupEnabled": False,
+                    "backupSize": 0,
+                    "chatdbSize": 0,
+                }
+            ),
         )
     )
 
