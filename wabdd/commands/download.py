@@ -182,6 +182,12 @@ class DownloaderWorker(Thread):
                         )
                         continue
 
+                    if r.status_code == 400:
+                        self.progress.console.print(
+                            f"Error: Bad request for file {file_name}",
+                        )
+                        continue
+
                     r.raise_for_status()
                     with open(local_file, "wb") as f:
                         self.progress.start_task(self.task_id)
