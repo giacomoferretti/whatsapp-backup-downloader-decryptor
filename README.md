@@ -55,10 +55,13 @@
 1. Under `Settings > Chats > Chat backup > End-to-end encrypted backup`
 2. Tap on `Turn on`
 3. Choose `Use 64-digit encryption key instead`
-![64-Digit Key Step 1](.github/assets/backup_key_step1.png)
+
+    <img src=".github/assets/backup_key_step1.png" alt="64-Digit Key Step 1" width="400px">
+
 4. Generate your 64-digit key
 5. Copy the value into a text file (e.g. in this case `bf902e3b590af0ba781b75134c08026614ef6af12b754ee0139ebbd25f58481c`)
-![64-Digit Key Step 2](.github/assets/backup_key_step2.png)
+
+    <img src=".github/assets/backup_key_step2.png" alt="64-Digit Key Step 2" width="400px">
 
 #### Using root access
 
