@@ -56,6 +56,16 @@
 7. Copy the value of the `oauth_token` cookie
 ![OAuth Step 3](.github/assets/oauth_token_step3.png)
 
+## 💖 Support My Work
+
+If you find my projects useful, consider supporting me:  
+
+[![Donate on Liberapay](https://img.shields.io/badge/Donate-Liberapay-F6C915.svg?style=flat-square)](https://liberapay.com/your-username)  
+[![Support me on Ko-fi](https://img.shields.io/badge/Ko--fi-giacomoferretti-ff5f5f?style=flat-square&logo=ko-fi)](https://ko-fi.com/giacomoferretti)  
+[![Donate via PayPal](https://img.shields.io/badge/PayPal-hexile0-0070ba?style=flat-square&logo=paypal)](https://www.paypal.me/hexile0)  
+
+Your support helps me continue improving these tools and creating new ones. Thank you! 🙌
+
 <!-- ### Prerequisites (only for poetry and docker)
 
 1. Clone repository
