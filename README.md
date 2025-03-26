@@ -85,6 +85,16 @@
 7. Copy the value of the `oauth_token` cookie
 ![OAuth Step 3](.github/assets/oauth_token_step3.png)
 
+## Frequently Asked Question
+
+### Does this tool support normal backups (`.crypt14`)?
+
+No, this tool only supports end-to-end encrypted backups `.crypt15`. Follow #18 for more.
+
+### I made the backup using a password instead of the 64-digit encryption key. Can I use this tool?
+
+No, this tool only supports end-to-end encrypted backups that use the 64-digit encryption key. Follow #14 for more.
+
 ## 💖 Support My Work
 
 If you find my projects useful, consider supporting me:  
