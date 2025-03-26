@@ -60,11 +60,13 @@
 
 If you find my projects useful, consider supporting me:  
 
-[![Donate on Liberapay](https://img.shields.io/badge/Donate-Liberapay-F6C915.svg?style=flat-square)](https://liberapay.com/your-username)  
+[![Donate on Liberapay](https://img.shields.io/badge/Liberapay-giacomoferretti-F6C915.svg?style=flat-square&logo=liberapay)](https://liberapay.com/giacomoferretti)  
 [![Support me on Ko-fi](https://img.shields.io/badge/Ko--fi-giacomoferretti-ff5f5f?style=flat-square&logo=ko-fi)](https://ko-fi.com/giacomoferretti)  
 [![Donate via PayPal](https://img.shields.io/badge/PayPal-hexile0-0070ba?style=flat-square&logo=paypal)](https://www.paypal.me/hexile0)  
 
 Your support helps me continue improving these tools and creating new ones. Thank you! 🙌
+
+If you can't donate, I also appreciate **stars** ⭐ on my repositories!
 
 <!-- ### Prerequisites (only for poetry and docker)
 
