@@ -2,6 +2,11 @@
 
 [![PyPI - Version](https://img.shields.io/pypi/v/wabdd?color=green)](https://pypi.org/project/wabdd)
 
+## Prerequisites
+
+- End-to-end encrypted backups on Google Drive
+- 64-digit encryption key (**PASSWORD IS NOT SUPPORTED**)
+
 ## Usage
 
 ### Using PyPi
@@ -42,6 +47,30 @@
     ```shell
     wabdd decrypt --key-file keys/PHONE_NUMBER_decryption.key dump backups/PHONE_NUMBER_DATE
     ```
+
+### Getting the 64-digit encryption key
+
+#### Creating a new backup
+
+1. Under `Settings > Chats > Chat backup > End-to-end encrypted backup`
+2. Tap on `Turn on`
+3. Choose `Use 64-digit encryption key instead`
+![64-Digit Key Step 1](.github/assets/backup_key_step1.png)
+4. Generate your 64-digit key
+5. Copy the value into a text file (e.g. in this case `bf902e3b590af0ba781b75134c08026614ef6af12b754ee0139ebbd25f58481c`)
+![64-Digit Key Step 2](.github/assets/backup_key_step2.png)
+
+#### Using root access
+
+1. Copy the `/data/data/com.whatsapp/encrypted_backup.key` to your pc
+2. Run the following script
+
+    ```python
+    with open("encrypted_backup.key", "rb") as f:
+        print(f.read()[-32:].hex())
+    ```
+
+3. Copy paste the output string into a new file
 
 ### Getting the `oauth_token`
 
