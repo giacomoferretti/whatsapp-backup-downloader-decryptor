@@ -80,13 +80,18 @@
 1. Visit <https://accounts.google.com/EmbeddedSetup>
 2. Login using the Google account associated in the WhatsApp backup settings.
 3. You will get the following screen
-![OAuth Step 1](.github/assets/oauth_token_step1.png)
+
+    <img src=".github/assets/oauth_token_step1.png" alt="OAuth Step 1" width="600px">
+
 4. Now click on "I agree", the form will load indefinitely.
-![OAuth Step 2](.github/assets/oauth_token_step2.png)
+
+    <img src=".github/assets/oauth_token_step2.png" alt="OAuth Step 2" width="600px">
+
 5. Open the Developer Tools using `F12`, `CTRL+SHIFT+I` or by right-cliking the page > Inspect
 6. Now go to the Application tab, under Cookies select `https://accounts.google.com`
 7. Copy the value of the `oauth_token` cookie
-![OAuth Step 3](.github/assets/oauth_token_step3.png)
+
+    <img src=".github/assets/oauth_token_step3.png" alt="OAuth Step 3" width="600px">
 
 ## Frequently Asked Question
 
