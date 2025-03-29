@@ -1,0 +1,15 @@
+name: 'Close stale issues with label waiting-for-issuer'
+on:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          stale-issue-message: 'This issue is stale because it has been open 30 days with no activity from the issuer.'
+          any-of-issue-labels: 'waiting-for-issuer'
+          days-before-issue-stale: 30
+          days-before-issue-close: -1

@@ -39,9 +39,11 @@ def get_md5_hash_from_file(file: str | pathlib.Path):
     return file_hash.digest()
 
 
-def crop_string(s: str, N: int, ellipsis="…"):
+def crop_string(s: str, N: int, ellipsis="…", include_ellipsis=True):
+    ellipsis_length = len(ellipsis) if include_ellipsis else 0
+
     # Check if the string needs to be cropped
-    if len(s) > N - len(ellipsis):
-        return ellipsis + s[(-(N - len(ellipsis))) :]
+    if len(s) > N - ellipsis_length:
+        return ellipsis + s[(-(N - ellipsis_length)) :]
     else:
         return s
