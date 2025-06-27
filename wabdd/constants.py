@@ -17,5 +17,6 @@ from . import __version__
 BACKUP_FOLDER = "backups"
 TOKENS_FOLDER = "tokens"
 TOKEN_SUFFIX = "_token.txt"
+USER_AGENT = f"wagdd/{__version__}"
 MASTER_TOKEN_SUFFIX = "_mastertoken.txt"
 USER_AGENT = f"wabdd/{__version__}"
