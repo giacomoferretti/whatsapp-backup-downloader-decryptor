@@ -146,12 +146,11 @@ class DownloaderWorker(Thread):
 
                 # Check if file should be excluded
                 if self.exclude_pattern:
-                    for pattern in self.exclude_pattern:
-                        if fnmatch.fnmatch(real_path, pattern):
-                            self.progress.console.print(
-                                f"Skipping {real_path} (excluded)"
-                            )
-                            continue
+                    if any(fnmatch.fnmatch(real_path, pattern) for pattern in self.exclude_pattern):
+                        self.progress.console.print(
+                            f"Skipping {real_path} (excluded)"
+                        )
+                        continue
 
                 # Check if file is already downloaded
                 local_file = self.output / stripped_filepath
