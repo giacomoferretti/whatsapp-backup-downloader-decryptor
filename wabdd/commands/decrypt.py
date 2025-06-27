@@ -15,6 +15,7 @@
 import os
 import pathlib
 import sys
+import traceback
 import zlib
 from datetime import datetime
 from queue import Queue
@@ -35,7 +36,7 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
-from wa_crypt_tools.lib.db.dbfactory import DatabaseFactory
+from wa_crypt_tools.lib.db.dbfactory import Database15, DatabaseFactory
 from wa_crypt_tools.lib.key.key15 import Key15
 from wa_crypt_tools.lib.utils import encryptionloop, mcrypt1_metadata_decrypt
 
@@ -111,6 +112,7 @@ class DecryptionWorker(Thread):
                     f"Error in {self.ERROR_FOLDER} {self.ERROR_FILE}"
                 )
                 self.overall_progress.console.print(f"Error: {e}")
+                self.overall_progress.console.print(traceback.format_exc())
                 self.is_running = False
             finally:
                 # Update overall progress
@@ -199,8 +201,8 @@ def decrypt_mcrypt1_file(
 
 
 def decrypt_crypt15_file(
-        dump_folder: pathlib.Path, encrypted_file: pathlib.Path, key: Key15
-) -> tuple[pathlib.Path, bytes, datetime]:
+    dump_folder: pathlib.Path, encrypted_file: pathlib.Path, key: Key15
+) -> tuple[pathlib.Path, bytes, None]:
     output_file = encrypted_file.relative_to(dump_folder)
 
     # Remove .crypt15 extension
@@ -210,6 +212,11 @@ def decrypt_crypt15_file(
     # Open .crypt15 file
     with open(encrypted_file, "rb") as f:
         db = DatabaseFactory.from_file(f)
+
+        # Check if db is Database15
+        if not isinstance(db, Database15):
+            raise ValueError("Unsupported database format")
+
         decrypted_data = db.decrypt(key, f.read())
 
     # Try to decompress the data

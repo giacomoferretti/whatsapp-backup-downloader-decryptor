@@ -19,6 +19,7 @@ from . import __version__
 BACKUP_FOLDER = "backups"
 TOKENS_FOLDER = "tokens"
 TOKEN_SUFFIX = "_token.txt"
+MASTER_TOKEN_SUFFIX = "_mastertoken.txt"
 
 DEFAULT_OUTPUT_PATH = pathlib.Path(f"{TOKENS_FOLDER}/oauth{TOKEN_SUFFIX}")
 
@@ -42,4 +43,4 @@ SELECTORS = {
     'consent_next': '#signinconsentNext button, [name="consent_next"]'
 }
 
-USER_AGENT = f"wagdd/{__version__}"
+USER_AGENT = f"wabdd/{__version__}"

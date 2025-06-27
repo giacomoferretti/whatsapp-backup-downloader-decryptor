@@ -16,25 +16,57 @@ from urllib.parse import quote
 
 import requests
 
+from . import gpsoauth_helper, utils
 from .constants import USER_AGENT
 
 
 class WaBackup:
-    def __init__(self, auth):
-        self.auth = auth
+    def __init__(self, auth_token, master_token):
+        self.auth_token = auth_token
+        self.master_token = master_token
+
+        # Check if at least one token is provided
+        if not (auth_token or master_token):
+            raise ValueError("At least one token must be provided")
 
     def _get(self, path, params=None, **kwargs):
         path = quote(path)
         r = requests.get(
             f"https://backup.googleapis.com/v1/{path}",
             headers={
-                "Authorization": f"Bearer {self.auth}",
+                "Authorization": f"Bearer {self.auth_token}",
                 "User-Agent": USER_AGENT,
             },
             params=params,
             **kwargs,
         )
-        r.raise_for_status()
+
+        # If the request is unauthorized, try to refresh the auth token
+        if r.status_code == 401:
+            if self.master_token is None:
+                raise ValueError(
+                    "Auth token is expired and no master token is provided. "
+                    "You need to provide a master token to refresh the auth token."
+                )
+
+            try:
+                android_id = utils.generate_android_uid()
+                self.auth_token = gpsoauth_helper.get_auth_token(
+                    self.master_token, android_id
+                )
+            except gpsoauth_helper.AuthException:
+                raise ValueError("Something went wrong while refreshing the auth token")
+
+            r = requests.get(
+                f"https://backup.googleapis.com/v1/{path}",
+                headers={
+                    "Authorization": f"Bearer {self.auth_token}",
+                    "User-Agent": USER_AGENT,
+                },
+                params=params,
+                **kwargs,
+            )
+
         return r
 
     def _get_page(self, path, page_token=None):

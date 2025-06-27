@@ -12,6 +12,12 @@ __pycache__/
 # Ignore backups
 backups
 
+# Unit test / coverage reports
+htmlcov/
+.coverage
+.coverage.*
+
 # Ignore keys and tokens
 tokens
 keys
+research
