@@ -26,11 +26,11 @@
 2. Get token (change with your Google account email used in WhatsApp backup settings)
 
     ```shell
-    wabdd cookie YOUR_GOOGLE@EMAIL.ADRESS -password/-p YOUR_PASSWORD -b BROWSER_NAME(chrome,brave,edge)
-    ```
-    
-    ```shell
     wabdd token YOUR_GOOGLE@EMAIL.ADDRESS
+    ```
+
+    ```shell
+    wabdd cookie YOUR_GOOGLE@EMAIL.ADRESS -password/-p YOUR_PASSWORD -b BROWSER_NAME(chrome,brave,edge)
     ```
 
     - If you need additional information, check [the guide](#getting-the-oauth_token)
