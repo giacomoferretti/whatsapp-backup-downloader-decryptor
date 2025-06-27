@@ -17,6 +17,7 @@ import fnmatch
 import json
 import pathlib
 import sys
+import traceback
 from datetime import datetime
 from queue import Queue
 from threading import Event, Thread
@@ -93,8 +94,8 @@ class DownloaderWorker(Thread):
         progress: Progress,
         overall_progress: tuple[Progress, TaskID],
         client: WaBackup,
-        exclude_pattern: list[str] = None,
-        decryption_key: Key15 = None,
+        exclude_pattern: tuple[str] | None = None,
+        decryption_key: Key15 | None = None,
     ):
         super().__init__()
         self.queue = queue
@@ -136,21 +137,20 @@ class DownloaderWorker(Thread):
                 stripped_filepath = pathlib.Path(*file_path.split("/")[5:])
 
                 # Decrypt metadata if available
-                real_path = stripped_filepath
+                real_path = str(stripped_filepath)
                 if self.decryption_key and metadata:
                     decrypted_metadata = mcrypt1_metadata_decrypt(
                         key=self.decryption_key, encoded=metadata
                     )
-                    real_path = decrypted_metadata.get("name")
+                    real_path = str(decrypted_metadata.get("name", real_path))
 
                 # Check if file should be excluded
                 if self.exclude_pattern:
-                    for pattern in self.exclude_pattern:
-                        if fnmatch.fnmatch(real_path, pattern):
-                            self.progress.console.print(
-                                f"Skipping {real_path} (excluded)"
-                            )
-                            continue
+                    if any(fnmatch.fnmatch(real_path, pattern) for pattern in self.exclude_pattern):
+                        self.progress.console.print(
+                            f"Skipping {real_path} (excluded)"
+                        )
+                        continue
 
                 # Check if file is already downloaded
                 local_file = self.output / stripped_filepath
@@ -182,6 +182,12 @@ class DownloaderWorker(Thread):
                         )
                         continue
 
+                    if r.status_code == 400:
+                        self.progress.console.print(
+                            f"Error: Bad request for file {file_name}",
+                        )
+                        continue
+
                     r.raise_for_status()
                     with open(local_file, "wb") as f:
                         self.progress.start_task(self.task_id)
@@ -199,6 +205,7 @@ class DownloaderWorker(Thread):
 
             except Exception as e:
                 self.progress.console.print(f"Error: {e}")
+                self.progress.console.print(traceback.format_exc())
                 self.is_running = False
             finally:
                 # Stop the download progress task
@@ -218,6 +225,7 @@ class DownloaderWorker(Thread):
 
 @click.command(name="download")
 @click.option("--token-file", help="Token file", default=None)
+@click.option("--master-token", help="Master token file", default=None)
 @click.option("--output", help="Output directory")
 @click.option("--threads", help="Number of threads to use", default=8)
 @click.option(
@@ -242,23 +250,43 @@ class DownloaderWorker(Thread):
     "--decryption-key-file", help="Key file to use for decryption", default=None
 )
 def download(
-    token_file,
-    output,
-    threads,
-    save_files_list,
-    save_backup_metadata,
-    exclude_pattern,
-    decryption_key_file,
+    token_file: str,
+    master_token: str,
+    output: str,
+    threads: int,
+    save_files_list: bool,
+    save_backup_metadata: bool,
+    exclude_pattern: tuple[str],
+    decryption_key_file: str,
 ):
-    # Check for token
-    if not pathlib.Path(token_file).exists():
-        print(f"Token file {token_file} not found", file=sys.stderr)
-        print("Run `wabdd token` to generate a token", file=sys.stderr)
+    # Check for token file or master token
+    if not token_file and not master_token:
+        print("Please provide a token file or a master token", file=sys.stderr)
         sys.exit(1)
 
-    # Load token
-    with open(token_file) as f:
-        token = f.read().strip()
+    # Check for token
+    if token_file:
+        if not pathlib.Path(token_file).exists():
+            print(f"Token file {token_file} not found", file=sys.stderr)
+            print("Run `wabdd token` to generate a token", file=sys.stderr)
+            sys.exit(1)
+
+        # Load token
+        with open(token_file) as f:
+            token = f.read().strip()
+    else:
+        token = None
+
+    # Check for master token
+    if master_token:
+        if not pathlib.Path(master_token).exists():
+            print(f"Master token file {master_token} not found", file=sys.stderr)
+            print("Run `wabdd token` to generate a master token", file=sys.stderr)
+            sys.exit(1)
+
+        # Load master token
+        with open(master_token) as f:
+            master_token = f.read().strip()
 
     # Load decryption key
     decryption_key = None
@@ -271,15 +299,25 @@ def download(
             decryption_key = Key15(key_bytes)
 
     # Initialize client
-    wa = WaBackup(token)
+    wa = WaBackup(token, master_token)
 
     # Get backups
     try:
-        backups = list(wa.get_backups())
+        _backups = list(wa.get_backups())
     except requests.exceptions.HTTPError as e:
         print(f"Error: {e}")
         print("Run `wabdd token` to generate a new token", file=sys.stderr)
         sys.exit(1)
+
+    # Filter out backups that are still uploading
+    backups = []
+    for backup in _backups:
+        if "activeTransactionId" in backup:
+            print(f"Backup {backup['name']} is still uploading, skipping")
+            print(json.dumps(backup, indent=2))
+            continue
+
+        backups.append(backup)
 
     if len(backups) == 0:
         print("No backups found")
@@ -287,8 +325,7 @@ def download(
 
     if len(backups) > 1:
         for i, backup in enumerate(backups):
-            backup_metadata = json.loads(backup["metadata"])
-            print(f"Backup {i+1}: {backup['name']} ({backup['updateTime']})")
+            print(f"Backup {i + 1}: {backup['name']} ({backup['updateTime']})")
 
         print("Multiple backups found, please specify which one to download")
 
@@ -298,7 +335,7 @@ def download(
                 message="Which backup do you want to download?",
                 choices=[
                     (
-                        f"Backup {i+1}: {backup['name'].split('/')[-1]} ({backup['updateTime']})",
+                        f"Backup {i + 1}: {backup['name'].split('/')[-1]} ({backup['updateTime']})",
                         backup,
                     )
                     for i, backup in enumerate(backups)
@@ -315,7 +352,20 @@ def download(
         backup = answers["backup"]
     else:
         backup = backups[0]
-    backup_metadata = json.loads(backup["metadata"])
+
+    # Get backup metadata
+    backup_metadata = json.loads(
+        backup.get(
+            "metadata",
+            json.dumps(
+                {
+                    "encryptedBackupEnabled": False,
+                    "backupSize": 0,
+                    "chatdbSize": 0,
+                }
+            ),
+        )
+    )
 
     # Build exclude pattern
     is_encrypted_backup = backup_metadata.get("encryptedBackupEnabled", False)
@@ -333,20 +383,28 @@ def download(
     # Set output directory
     if not output:
         timestamp = datetime.strptime(backup["updateTime"], "%Y-%m-%dT%H:%M:%S.%fZ")
-        output = (
+        output_dir = (
             pathlib.Path.cwd()
             / BACKUP_FOLDER
-            / f'{backup["name"].split("/")[-1]}_{timestamp.strftime("%Y%m%d")}'
+            / f"{backup['name'].split('/')[-1]}_{timestamp.strftime('%Y%m%d')}"
         )
+    else:
+        output_dir = pathlib.Path(output)
 
-    output.mkdir(parents=True, exist_ok=True)
+    # Check if the output dir is a file
+    if output_dir.exists() and not output_dir.is_dir():
+        print(f"Error: {output_dir} is not a directory", file=sys.stderr)
+        sys.exit(1)
+
+    # Create output directory
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     # Write metadata
     if save_backup_metadata:
-        with open(output / "metadata.json", "w") as f:
+        with open(output_dir / "metadata.json", "w") as f:
             json.dump(backup_metadata, f, separators=(",", ":"))
 
-    print("Downloading to", output)
+    print("Downloading to", output_dir)
 
     # Download files
     file_retrieval_progress = Progress(
@@ -403,10 +461,10 @@ def download(
         # Retrieve the list of files
         overall_progress.update(
             overall_task_id,
-            description=f"{steps[current_step]} ({current_step+1}/{len(steps)})",
+            description=f"{steps[current_step]} ({current_step + 1}/{len(steps)})",
         )
         task_id = file_retrieval_progress.add_task(
-            "Retrieving list of files...", total=int(backup["sizeBytes"])
+            "Retrieving list of files...", total=int(backup.get("sizeBytes", "0"))
         )
         files = []
         debug_files = []
@@ -434,7 +492,7 @@ def download(
 
         # Debug
         if save_files_list:
-            with open(output / "files.json", "w") as f:
+            with open(output_dir / "files.json", "w") as f:
                 json.dump(debug_files, f, separators=(",", ":"))
 
         current_step += 1
@@ -443,12 +501,12 @@ def download(
         # Prepare directories
         overall_progress.update(
             overall_task_id,
-            description=f"{steps[current_step]} ({current_step+1}/{len(steps)})",
+            description=f"{steps[current_step]} ({current_step + 1}/{len(steps)})",
         )
         already_created = set()
         for file in files:
             target: pathlib.Path = (
-                output / pathlib.Path(*file["path"].split("/")[5:]).parent
+                output_dir / pathlib.Path(*file["path"].split("/")[5:]).parent
             )
 
             # Skip if already created
@@ -469,7 +527,7 @@ def download(
         # Download files
         overall_progress.update(
             overall_task_id,
-            description=f"{steps[current_step]} ({current_step+1}/{len(steps)})",
+            description=f"{steps[current_step]} ({current_step + 1}/{len(steps)})",
         )
 
         overall_download_task_id = download_overall_progress.add_task(
@@ -487,7 +545,7 @@ def download(
 
             worker = DownloaderWorker(
                 queue,
-                output,
+                output_dir,
                 download_progress,
                 (download_overall_progress, overall_download_task_id),
                 wa,
@@ -524,7 +582,7 @@ def download(
         overall_progress.update(
             overall_task_id,
             advance=1,
-            description=f"FINISHED! ({current_step+1}/{len(steps)})",
+            description=f"FINISHED! ({current_step + 1}/{len(steps)})",
         )
 
-    print(f"You can now run `wabdd decrypt --key-file YOUR_KEY_FILE dump {output}`")
+    print(f"You can now run `wabdd decrypt --key-file YOUR_KEY_FILE dump {output_dir}`")

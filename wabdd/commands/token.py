@@ -18,15 +18,17 @@ import sys
 import click
 import gpsoauth
 
-from ..constants import TOKEN_SUFFIX, TOKENS_FOLDER
+from .. import gpsoauth_helper
+from ..constants import MASTER_TOKEN_SUFFIX, TOKEN_SUFFIX, TOKENS_FOLDER
 from ..utils import generate_android_uid
 
 
 @click.command(name="token")
 @click.argument("email")
 @click.option("--token-file", help="Token file", default=None)
+@click.option("--master-token", help="Master token file", default=None)
 @click.option("--android-id", help="Android ID", default=None)
-def token(token_file, android_id, email):
+def token(token_file: str, master_token: str, android_id: str, email: str):
     # Generate a random android_id if not provided
     if android_id is None:
         android_id = generate_android_uid()
@@ -38,63 +40,51 @@ def token(token_file, android_id, email):
         # Create tokens folder if it doesn't exist
         tokens_folder = pathlib.Path.cwd() / TOKENS_FOLDER
         tokens_folder.mkdir(parents=True, exist_ok=True)
-        token_file = tokens_folder / token_file
+        token_filepath = tokens_folder / token_file
+    else:
+        token_filepath = pathlib.Path(token_file)
+
+    # Use the default master token file if not provided
+    if master_token is None:
+        master_token_file = (
+            email.replace("@", "_").replace(".", "_") + MASTER_TOKEN_SUFFIX
+        )
+
+        # Create tokens folder if it doesn't exist
+        tokens_folder = pathlib.Path.cwd() / TOKENS_FOLDER
+        tokens_folder.mkdir(parents=True, exist_ok=True)
+        master_token_filepath = tokens_folder / master_token_file
+    else:
+        master_token_filepath = pathlib.Path(master_token)
 
     # Ask for the oauth_token cookie
     print(
         "Please visit https://accounts.google.com/EmbeddedSetup, "
         "login and copy the oauth_token cookie."
     )
-    token = input('Enter "oauth_token" code: ')
+    oauth_token = input('Enter "oauth_token" code: ')
 
     # Exchange the token for a master token
-    master_response = gpsoauth.exchange_token(email, token, android_id)
+    master_response = gpsoauth.exchange_token(email, oauth_token, android_id)
     if "Error" in master_response:
         print(master_response["Error"], file=sys.stderr)
         sys.exit(1)
 
     master_token = master_response["Token"]
+    with open(master_token_filepath, "w") as f:
+        f.write(master_token)
+        print(f"Master Token saved to `{master_token_filepath}`")
 
-    # Perform the oauth login for com.whatsapp
-    # auth_response = gpsoauth.perform_oauth(
-    #     email,
-    #     master_token,
-    #     android_id,
-    #     service="oauth2:https://www.googleapis.com/auth/drive.appdata",
-    #     app="com.whatsapp",
-    #     client_sig="38a0f7d505fe18fec64fbf343ecaaaf310dbd799",
-    # )
-
-    # FIXME: Remove this when fixed upstream
-    # https://github.com/B16f00t/whapa/issues/228#issuecomment-2608062669
-    oauth_data = {
-        "accountType": "HOSTED_OR_GOOGLE",
-        "has_permission": 1,
-        "Token": master_token,
-        "service": "oauth2:https://www.googleapis.com/auth/drive.appdata",
-        "source": "android",
-        "androidId": android_id,
-        "app": "com.whatsapp",
-        "client_sig": "38a0f7d505fe18fec64fbf343ecaaaf310dbd799",
-        "device_country": "us",
-        "operatorCountry": "us",
-        "lang": "en",
-        "sdk_version": 17,
-        "google_play_services_version": 240913000,
-    }
-    auth_response = gpsoauth._perform_auth_request(oauth_data, None)
-
-    # Check if the login was successful
-    if "Auth" not in auth_response:
-        print(auth_response, file=sys.stderr)
+    try:
+        auth_token = gpsoauth_helper.get_auth_token(master_token, android_id)
+    except gpsoauth_helper.AuthException as e:
+        print(e, file=sys.stderr)
+        print(e.get_extra(), file=sys.stderr)
         sys.exit(1)
 
-    token = auth_response["Auth"]
-    print(f"Your token is: {token}")
-
     # Save the token to a file
-    with open(token_file, "w") as f:
-        f.write(token)
-        print(f"Token saved to `{token_file}`")
+    with open(token_filepath, "w") as f:
+        f.write(auth_token)
+        print(f"Token saved to `{token_filepath}`")
 
-    print(f"You can now run `wabdd download --token-file {token_file}`")
+    print(f"You can now run `wabdd download --master-token {master_token_filepath}`")
