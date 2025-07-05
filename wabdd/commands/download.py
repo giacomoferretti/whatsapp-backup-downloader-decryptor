@@ -22,6 +22,7 @@ from datetime import datetime
 from queue import Queue
 from threading import Event, Thread
 from time import time
+from typing import Optional, Tuple
 
 import click
 import inquirer
@@ -92,10 +93,10 @@ class DownloaderWorker(Thread):
         queue: Queue,
         output: pathlib.Path,
         progress: Progress,
-        overall_progress: tuple[Progress, TaskID],
+        overall_progress: Tuple[Progress, TaskID],
         client: WaBackup,
-        exclude_pattern: tuple[str] | None = None,
-        decryption_key: Key15 | None = None,
+        exclude_pattern: Optional[Tuple[str]] = None,
+        decryption_key: Optional[Key15] = None,
     ):
         super().__init__()
         self.queue = queue
@@ -256,7 +257,7 @@ def download(
     threads: int,
     save_files_list: bool,
     save_backup_metadata: bool,
-    exclude_pattern: tuple[str],
+    exclude_pattern: Tuple[str],
     decryption_key_file: str,
 ):
     # Check for token file or master token

@@ -20,6 +20,7 @@ import zlib
 from datetime import datetime
 from queue import Queue
 from threading import Event, Thread
+from typing import Tuple
 
 import click
 from Cryptodome.Cipher import AES
@@ -47,7 +48,7 @@ class DecryptionWorker(Thread):
         self,
         queue: Queue,
         output: pathlib.Path,
-        overall_progress: tuple[Progress, TaskID],
+        overall_progress: Tuple[Progress, TaskID],
         key: Key15,
     ):
         super().__init__()
@@ -131,7 +132,7 @@ def decrypt_metadata(metadata_file: pathlib.Path, key: Key15):
 
 def decrypt_mcrypt1_file(
     dump_folder: pathlib.Path, encrypted_file: pathlib.Path, key: Key15
-) -> tuple[pathlib.Path, bytes, datetime]:
+) -> Tuple[pathlib.Path, bytes, datetime]:
     # Get filename without `.mcrypt1` extension and convert to bytes
     decryption_hash = bytes.fromhex(encrypted_file.with_suffix("").name)
     decryption_data = encryptionloop(
@@ -162,7 +163,7 @@ def decrypt_mcrypt1_file(
 
 def decrypt_crypt15_file(
     dump_folder: pathlib.Path, encrypted_file: pathlib.Path, key: Key15
-) -> tuple[pathlib.Path, bytes, None]:
+) -> Tuple[pathlib.Path, bytes, None]:
     output_file = encrypted_file.relative_to(dump_folder)
 
     # Remove .crypt15 extension
