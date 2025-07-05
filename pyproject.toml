@@ -1,36 +1,40 @@
-[tool.poetry]
+[project]
 name = "wabdd"
 version = "0.1.5"
 description = "WhatsApp Backup Google Drive Downloader Decryptor"
-authors = ["Giacomo Ferretti <giacomo.ferretti.00@gmail.com>"]
+authors = [{ name = "Giacomo Ferretti", email = "giacomo.ferretti.00@gmail.com" }]
+requires-python = "~=3.9"
 readme = "README.md"
 license = "Apache-2.0"
-repository = "https://github.com/giacomoferretti/frida-type-generator"
-packages = [{include = "wabdd"}]
+dependencies = [
+    "click>=8.1.8",
+    "gpsoauth>=2.0.0",
+    "inquirer>=3.4.0",
+    "pycryptodomex>=3.23.0",
+    "requests>=2.32.4",
+    "rich>=14.0.0",
+    "wa-crypt-tools>=0.1.0",
+]
 
-[tool.poetry.urls]
-"Bug Tracker" = "https://github.com/giacomoferretti/frida-type-generator/issues"
+[project.urls]
+source = "https://github.com/giacomoferretti/whatsapp-backup-downloader-decryptor"
+issues = "https://github.com/giacomoferretti/whatsapp-backup-downloader-decryptor/issues"
 
-[tool.poetry.dependencies]
-python = "^3.9"
-click = "^8.1.7"
-gpsoauth = "^1.1.1"
-requests = "^2.32.3"
-pycryptodomex = "^3.21.0"
-inquirer = "^3.4.0"
-rich = "^13.9.4"
-wa-crypt-tools = "^0.1.0"
+[dependency-groups]
+lint = [
+    "ruff>=0.7.4",
+]
+test = [
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+]
 
-
-[tool.poetry.group.test.dependencies]
-pytest = "^8.3.5"
-pytest-cov = "^6.0.0"
-
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.7.4"
-
-[tool.poetry.scripts]
+[project.scripts]
 wabdd = "wabdd.__main__:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.ruff]
 line-length = 120
@@ -45,8 +49,4 @@ select = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "--cov=wabdd --cov-report html"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+addopts = "--ignore=backups --ignore=tokens --ignore=keys --cov=wabdd --cov-report html"
