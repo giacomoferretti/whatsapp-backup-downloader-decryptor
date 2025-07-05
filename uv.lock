@@ -605,7 +605,7 @@ wheels = [
 
 [[package]]
 name = "wabdd"
-version = "0.1.6"
+version = "0.1.5"
 source = { editable = "." }
 dependencies = [
     { name = "click", version = "8.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -619,12 +619,12 @@ dependencies = [
 ]
 
 [package.dev-dependencies]
-lint = [
-    { name = "ruff" },
-]
-test = [
+dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
+]
+lint = [
+    { name = "ruff" },
 ]
 
 [package.metadata]
@@ -639,11 +639,11 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-lint = [{ name = "ruff", specifier = ">=0.7.4" }]
-test = [
+dev = [
     { name = "pytest", specifier = ">=8.4.1" },
     { name = "pytest-cov", specifier = ">=6.2.1" },
 ]
+lint = [{ name = "ruff", specifier = ">=0.7.4" }]
 
 [[package]]
 name = "wcwidth"

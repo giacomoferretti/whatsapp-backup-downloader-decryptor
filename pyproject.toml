@@ -24,7 +24,7 @@ issues = "https://github.com/giacomoferretti/whatsapp-backup-downloader-decrypto
 lint = [
     "ruff>=0.7.4",
 ]
-test = [
+dev = [
     "pytest>=8.4.1",
     "pytest-cov>=6.2.1",
 ]
