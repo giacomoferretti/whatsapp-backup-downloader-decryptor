@@ -46,9 +46,7 @@ def token(token_file: str, master_token: str, android_id: str, email: str):
 
     # Use the default master token file if not provided
     if master_token is None:
-        master_token_file = (
-            email.replace("@", "_").replace(".", "_") + MASTER_TOKEN_SUFFIX
-        )
+        master_token_file = email.replace("@", "_").replace(".", "_") + MASTER_TOKEN_SUFFIX
 
         # Create tokens folder if it doesn't exist
         tokens_folder = pathlib.Path.cwd() / TOKENS_FOLDER
@@ -58,10 +56,7 @@ def token(token_file: str, master_token: str, android_id: str, email: str):
         master_token_filepath = pathlib.Path(master_token)
 
     # Ask for the oauth_token cookie
-    print(
-        "Please visit https://accounts.google.com/EmbeddedSetup, "
-        "login and copy the oauth_token cookie."
-    )
+    print("Please visit https://accounts.google.com/EmbeddedSetup, login and copy the oauth_token cookie.")
     oauth_token = input('Enter "oauth_token" code: ')
 
     # Exchange the token for a master token

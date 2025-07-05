@@ -51,9 +51,7 @@ class WaBackup:
 
             try:
                 android_id = utils.generate_android_uid()
-                self.auth_token = gpsoauth_helper.get_auth_token(
-                    self.master_token, android_id
-                )
+                self.auth_token = gpsoauth_helper.get_auth_token(self.master_token, android_id)
             except gpsoauth_helper.AuthException:
                 raise ValueError("Something went wrong while refreshing the auth token")
 

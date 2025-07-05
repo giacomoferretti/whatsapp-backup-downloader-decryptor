@@ -69,9 +69,7 @@ class ItemSpeedColumn(ProgressColumn):
         last_completed = self.previous_completed.get(task.id, 0)
         last_time = self.previous_time.get(task.id, current_time)
 
-        elapsed_time = (
-            current_time - last_time if last_time != current_time else 1e-10
-        )  # avoid division by zero
+        elapsed_time = current_time - last_time if last_time != current_time else 1e-10  # avoid division by zero
 
         # Calculate speed in items per second
         speed = (completed - last_completed) / elapsed_time if elapsed_time > 0 else 0
@@ -140,17 +138,13 @@ class DownloaderWorker(Thread):
                 # Decrypt metadata if available
                 real_path = str(stripped_filepath)
                 if self.decryption_key and metadata:
-                    decrypted_metadata = mcrypt1_metadata_decrypt(
-                        key=self.decryption_key, encoded=metadata
-                    )
+                    decrypted_metadata = mcrypt1_metadata_decrypt(key=self.decryption_key, encoded=metadata)
                     real_path = str(decrypted_metadata.get("name", real_path))
 
                 # Check if file should be excluded
                 if self.exclude_pattern:
                     if any(fnmatch.fnmatch(real_path, pattern) for pattern in self.exclude_pattern):
-                        self.progress.console.print(
-                            f"Skipping {real_path} (excluded)"
-                        )
+                        self.progress.console.print(f"Skipping {real_path} (excluded)")
                         continue
 
                 # Check if file is already downloaded
@@ -247,9 +241,7 @@ class DownloaderWorker(Thread):
     help="Exclude files matching the given pattern",
     multiple=True,
 )
-@click.option(
-    "--decryption-key-file", help="Key file to use for decryption", default=None
-)
+@click.option("--decryption-key-file", help="Key file to use for decryption", default=None)
 def download(
     token_file: str,
     master_token: str,
@@ -372,7 +364,8 @@ def download(
     is_encrypted_backup = backup_metadata.get("encryptedBackupEnabled", False)
     if len(exclude_pattern) > 0 and is_encrypted_backup and decryption_key is None:
         print(
-            "WARNING: --exclude patterns will not work with encrypted backups without a decryption key. Please provide the decryption key file with --decryption-key-file",
+            "WARNING: --exclude patterns will not work with encrypted backups without a decryption key."
+            "Please provide the decryption key file with --decryption-key-file",
             file=sys.stderr,
         )
 
@@ -385,9 +378,7 @@ def download(
     if not output:
         timestamp = datetime.strptime(backup["updateTime"], "%Y-%m-%dT%H:%M:%S.%fZ")
         output_dir = (
-            pathlib.Path.cwd()
-            / BACKUP_FOLDER
-            / f"{backup['name'].split('/')[-1]}_{timestamp.strftime('%Y%m%d')}"
+            pathlib.Path.cwd() / BACKUP_FOLDER / f"{backup['name'].split('/')[-1]}_{timestamp.strftime('%Y%m%d')}"
         )
     else:
         output_dir = pathlib.Path(output)
@@ -434,9 +425,7 @@ def download(
         TimeRemainingColumn(),
     )
 
-    overall_progress = Progress(
-        TimeElapsedColumn(), BarColumn(bar_width=None), TextColumn("{task.description}")
-    )
+    overall_progress = Progress(TimeElapsedColumn(), BarColumn(bar_width=None), TextColumn("{task.description}"))
 
     group = Group(
         Panel(
@@ -487,9 +476,7 @@ def download(
             )
 
         file_retrieval_progress.stop_task(task_id)
-        file_retrieval_progress.update(
-            task_id, description=f"[bold green]All {len(files)} files retrieved!"
-        )
+        file_retrieval_progress.update(task_id, description=f"[bold green]All {len(files)} files retrieved!")
 
         # Debug
         if save_files_list:
@@ -506,9 +493,7 @@ def download(
         )
         already_created = set()
         for file in files:
-            target: pathlib.Path = (
-                output_dir / pathlib.Path(*file["path"].split("/")[5:]).parent
-            )
+            target: pathlib.Path = output_dir / pathlib.Path(*file["path"].split("/")[5:]).parent
 
             # Skip if already created
             if target in already_created:
@@ -531,9 +516,7 @@ def download(
             description=f"{steps[current_step]} ({current_step + 1}/{len(steps)})",
         )
 
-        overall_download_task_id = download_overall_progress.add_task(
-            "Downloading files...", total=len(files)
-        )
+        overall_download_task_id = download_overall_progress.add_task("Downloading files...", total=len(files))
 
         queue = Queue()
         for file in files:

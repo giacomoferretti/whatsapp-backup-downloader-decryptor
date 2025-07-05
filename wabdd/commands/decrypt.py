@@ -83,13 +83,9 @@ class DecryptionWorker(Thread):
 
                 # Decrypt file
                 if file.suffix == ".mcrypt1":
-                    output_file, decrypted_data, file_timestamp = decrypt_mcrypt1_file(
-                        folder, file, self.key
-                    )
+                    output_file, decrypted_data, file_timestamp = decrypt_mcrypt1_file(folder, file, self.key)
                 elif file.suffix == ".crypt15":
-                    output_file, decrypted_data, file_timestamp = decrypt_crypt15_file(
-                        folder, file, self.key
-                    )
+                    output_file, decrypted_data, file_timestamp = decrypt_crypt15_file(folder, file, self.key)
                 else:
                     # Copy unsupported files
                     self.overall_progress.console.print(f"Unsupported file: {file}")
@@ -107,9 +103,7 @@ class DecryptionWorker(Thread):
                     os.utime((self.output / output_file), (timestamp, timestamp))
 
             except Exception as e:
-                self.overall_progress.console.print(
-                    f"Error in {self.ERROR_FOLDER} {self.ERROR_FILE}"
-                )
+                self.overall_progress.console.print(f"Error in {self.ERROR_FOLDER} {self.ERROR_FILE}")
                 self.overall_progress.console.print(f"Error: {e}")
                 self.overall_progress.console.print(traceback.format_exc())
                 self.is_running = False
@@ -205,9 +199,7 @@ def decrypt(ctx, key, key_file):
         sys.exit(1)
 
     if key is not None and key_file is not None:
-        print(
-            "Please provide either a --key or a --key-file, not both", file=sys.stderr
-        )
+        print("Please provide either a --key or a --key-file, not both", file=sys.stderr)
         sys.exit(1)
 
     if key_file is not None:
@@ -303,9 +295,7 @@ def cmd_decrypt_dump(obj, folder, output, threads):
 
             queue.put((folder, file))
 
-        overall_download_task_id = download_overall_progress.add_task(
-            "Decrypting files...", total=queue.qsize()
-        )
+        overall_download_task_id = download_overall_progress.add_task("Decrypting files...", total=queue.qsize())
 
         # Start workers
         workers = []
