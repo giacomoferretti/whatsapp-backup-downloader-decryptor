@@ -1,30 +1,28 @@
-FROM python:3.12-alpine AS builder
+FROM ghcr.io/astral-sh/uv:python3.13-alpine AS builder
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
-ARG POETRY_VERSION=1.8.4
-
-ENV POETRY_HOME=/opt/poetry
-ENV POETRY_NO_INTERACTION=1
-ENV POETRY_VIRTUALENVS_IN_PROJECT=1
-ENV POETRY_VIRTUALENVS_CREATE=1
-ENV POETRY_CACHE_DIR=/opt/.cache
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
-
-RUN pip install "poetry==${POETRY_VERSION}"
+# Disable Python downloads, because we want to use the system interpreter
+# across both images. If using a managed Python version, it needs to be
+# copied from the build image into the final image; see `standalone.Dockerfile`
+# for an example.
+ENV UV_PYTHON_DOWNLOADS=0
 
 WORKDIR /app
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --locked --no-install-project --no-dev
+COPY . /app
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev
 
-COPY pyproject.toml poetry.lock ./
+FROM python:3.13-alpine
 
-RUN --mount=type=cache,target=$POETRY_CACHE_DIR poetry install --no-root 
+# Copy the application from the builder
+COPY --from=builder --chown=app:app /app /app
 
-FROM python:3.12-alpine AS runtime
-
-ENV VIRTUAL_ENV=/app/.venv
+# Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
 
-COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
-
-COPY wabdd ./wabdd
-
-ENTRYPOINT ["python", "-m", "wabdd"]
+# Run the FastAPI application by default
+ENTRYPOINT ["wabdd"]

@@ -1,0 +1,20 @@
+# Common
+.git
+.dockerignore
+.github
+.vscode
+
+# Python
+.coverage
+.pytest_cache
+.ruff_cache
+dist
+htmlcov
+.venv
+**/*.pyc
+
+# Project
+backups
+tokens
+keys
+research
