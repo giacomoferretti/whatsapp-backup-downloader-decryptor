@@ -3,7 +3,7 @@ name = "wabdd"
 version = "0.1.6"
 description = "WhatsApp Backup Google Drive Downloader Decryptor"
 authors = [{ name = "Giacomo Ferretti", email = "giacomo.ferretti.00@gmail.com" }]
-requires-python = "~=3.9"
+requires-python = ">=3.9, <4"
 readme = "README.md"
 license = "Apache-2.0"
 dependencies = [
