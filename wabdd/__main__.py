@@ -14,7 +14,7 @@
 
 import click
 
-from .commands import decrypt, download, token
+from .commands import decrypt, download, token, cookie
 
 
 @click.group()
@@ -25,6 +25,7 @@ def cli():
 cli.add_command(token.token)
 cli.add_command(download.download)
 cli.add_command(decrypt.decrypt)
+cli.add_command(cookie.cookie)
 
 if __name__ == "__main__":
     cli()
