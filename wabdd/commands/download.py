@@ -242,6 +242,12 @@ class DownloaderWorker(Thread):
     multiple=True,
 )
 @click.option("--decryption-key-file", help="Key file to use for decryption", default=None)
+@click.option(
+    "--include-uploading",
+    help="Include backups that are still uploading",
+    is_flag=True,
+    default=False,
+)
 def download(
     token_file: str,
     master_token: str,
@@ -251,6 +257,7 @@ def download(
     save_backup_metadata: bool,
     exclude_pattern: Tuple[str],
     decryption_key_file: str,
+    include_uploading: bool,
 ):
     # Check for token file or master token
     if not token_file and not master_token:
@@ -305,7 +312,7 @@ def download(
     # Filter out backups that are still uploading
     backups = []
     for backup in _backups:
-        if "activeTransactionId" in backup:
+        if "activeTransactionId" in backup and not include_uploading:
             print(f"Backup {backup['name']} is still uploading, skipping")
             print(json.dumps(backup, indent=2))
             continue
