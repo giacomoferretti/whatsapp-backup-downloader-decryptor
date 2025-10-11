@@ -21,9 +21,10 @@ from .constants import USER_AGENT
 
 
 class WaBackup:
-    def __init__(self, auth_token, master_token):
+    def __init__(self, auth_token, master_token, android_id=None):
         self.auth_token = auth_token
         self.master_token = master_token
+        self.android_id = android_id or utils.generate_android_uid()
 
         # Check if at least one token is provided
         if not (auth_token or master_token):
@@ -50,8 +51,7 @@ class WaBackup:
                 )
 
             try:
-                android_id = utils.generate_android_uid()
-                self.auth_token = gpsoauth_helper.get_auth_token(self.master_token, android_id)
+                self.auth_token = gpsoauth_helper.get_auth_token(self.master_token, self.android_id)
             except gpsoauth_helper.AuthException:
                 raise ValueError("Something went wrong while refreshing the auth token")
 

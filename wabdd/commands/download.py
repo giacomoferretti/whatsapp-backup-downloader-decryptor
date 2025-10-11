@@ -47,7 +47,7 @@ from rich.text import Text
 from wa_crypt_tools.lib.key.key15 import Key15
 from wa_crypt_tools.lib.utils import mcrypt1_metadata_decrypt
 
-from ..constants import BACKUP_FOLDER
+from ..constants import ANDROID_ID_SUFFIX, BACKUP_FOLDER
 from ..utils import crop_string, get_md5_hash_from_file, sizeof_fmt
 from ..wabackup import WaBackup
 
@@ -277,16 +277,27 @@ def download(
     else:
         token = None
 
+    android_id = None
+
     # Check for master token
     if master_token:
-        if not pathlib.Path(master_token).exists():
+        master_token_filepath = pathlib.Path(master_token)
+        if not master_token_filepath.exists():
             print(f"Master token file {master_token} not found", file=sys.stderr)
             print("Run `wabdd token` to generate a master token", file=sys.stderr)
             sys.exit(1)
 
         # Load master token
-        with open(master_token) as f:
+        with open(master_token_filepath) as f:
             master_token = f.read().strip()
+
+        # Try to load corresponding Android ID file
+        android_id_filepath = master_token_filepath.parent / (
+            master_token_filepath.stem.replace("_mastertoken", "") + ANDROID_ID_SUFFIX
+        )
+        if android_id_filepath.exists():
+            with open(android_id_filepath) as f:
+                android_id = f.read().strip()
 
     # Load decryption key
     decryption_key = None
@@ -299,7 +310,7 @@ def download(
             decryption_key = Key15(key_bytes)
 
     # Initialize client
-    wa = WaBackup(token, master_token)
+    wa = WaBackup(token, master_token, android_id)
 
     # Get backups
     try:

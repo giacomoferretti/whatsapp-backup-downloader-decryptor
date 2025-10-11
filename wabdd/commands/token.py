@@ -19,7 +19,7 @@ import click
 import gpsoauth
 
 from .. import gpsoauth_helper
-from ..constants import MASTER_TOKEN_SUFFIX, TOKEN_SUFFIX, TOKENS_FOLDER
+from ..constants import ANDROID_ID_SUFFIX, MASTER_TOKEN_SUFFIX, TOKEN_SUFFIX, TOKENS_FOLDER
 from ..utils import generate_android_uid
 
 
@@ -55,6 +55,11 @@ def token(token_file: str, master_token: str, android_id: str, email: str):
     else:
         master_token_filepath = pathlib.Path(master_token)
 
+    # Always save the android_id next to the master token
+    android_id_filepath = master_token_filepath.parent / (
+        master_token_filepath.stem.replace("_mastertoken", "") + ANDROID_ID_SUFFIX
+    )
+
     # Ask for the oauth_token cookie
     print("Please visit https://accounts.google.com/EmbeddedSetup, login and copy the oauth_token cookie.")
     oauth_token = input('Enter "oauth_token" code: ')
@@ -69,6 +74,10 @@ def token(token_file: str, master_token: str, android_id: str, email: str):
     with open(master_token_filepath, "w") as f:
         f.write(master_token)
         print(f"Master Token saved to `{master_token_filepath}`")
+
+    with open(android_id_filepath, "w") as f:
+        f.write(android_id)
+        print(f"Android ID saved to `{android_id_filepath}`")
 
     try:
         auth_token = gpsoauth_helper.get_auth_token(master_token, android_id)
