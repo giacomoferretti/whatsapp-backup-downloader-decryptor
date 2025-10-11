@@ -295,13 +295,9 @@ def download(
         android_id_filepath = master_token_filepath.parent / (
             master_token_filepath.stem.replace("_mastertoken", "") + ANDROID_ID_SUFFIX
         )
-        android_id = None
-        try:
+        if android_id_filepath.exists():
             with open(android_id_filepath) as f:
                 android_id = f.read().strip()
-        except FileNotFoundError:
-            # android_id will be None, causing random generation in WaBackup
-            pass
 
     # Load decryption key
     decryption_key = None
