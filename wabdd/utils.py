@@ -15,6 +15,7 @@
 import hashlib
 import pathlib
 import random
+from typing import Union
 
 
 # https://stackoverflow.com/questions/1094841/
@@ -30,7 +31,7 @@ def generate_android_uid():
     return f"{random.getrandbits(64):016x}"
 
 
-def get_md5_hash_from_file(file: str | pathlib.Path):
+def get_md5_hash_from_file(file: Union[str, pathlib.Path]):
     with open(file, "rb") as f:
         file_hash = hashlib.md5()
         while chunk := f.read(8192):

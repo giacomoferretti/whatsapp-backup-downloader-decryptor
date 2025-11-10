@@ -22,6 +22,7 @@ from datetime import datetime
 from queue import Queue
 from threading import Event, Thread
 from time import time
+from typing import Optional, Tuple
 
 import click
 import inquirer
@@ -46,7 +47,7 @@ from rich.text import Text
 from wa_crypt_tools.lib.key.key15 import Key15
 from wa_crypt_tools.lib.utils import mcrypt1_metadata_decrypt
 
-from ..constants import BACKUP_FOLDER
+from ..constants import ANDROID_ID_SUFFIX, BACKUP_FOLDER
 from ..utils import crop_string, get_md5_hash_from_file, sizeof_fmt
 from ..wabackup import WaBackup
 
@@ -68,9 +69,7 @@ class ItemSpeedColumn(ProgressColumn):
         last_completed = self.previous_completed.get(task.id, 0)
         last_time = self.previous_time.get(task.id, current_time)
 
-        elapsed_time = (
-            current_time - last_time if last_time != current_time else 1e-10
-        )  # avoid division by zero
+        elapsed_time = current_time - last_time if last_time != current_time else 1e-10  # avoid division by zero
 
         # Calculate speed in items per second
         speed = (completed - last_completed) / elapsed_time if elapsed_time > 0 else 0
@@ -92,10 +91,10 @@ class DownloaderWorker(Thread):
         queue: Queue,
         output: pathlib.Path,
         progress: Progress,
-        overall_progress: tuple[Progress, TaskID],
+        overall_progress: Tuple[Progress, TaskID],
         client: WaBackup,
-        exclude_pattern: tuple[str] | None = None,
-        decryption_key: Key15 | None = None,
+        exclude_pattern: Optional[Tuple[str]] = None,
+        decryption_key: Optional[Key15] = None,
     ):
         super().__init__()
         self.queue = queue
@@ -139,17 +138,13 @@ class DownloaderWorker(Thread):
                 # Decrypt metadata if available
                 real_path = str(stripped_filepath)
                 if self.decryption_key and metadata:
-                    decrypted_metadata = mcrypt1_metadata_decrypt(
-                        key=self.decryption_key, encoded=metadata
-                    )
+                    decrypted_metadata = mcrypt1_metadata_decrypt(key=self.decryption_key, encoded=metadata)
                     real_path = str(decrypted_metadata.get("name", real_path))
 
                 # Check if file should be excluded
                 if self.exclude_pattern:
                     if any(fnmatch.fnmatch(real_path, pattern) for pattern in self.exclude_pattern):
-                        self.progress.console.print(
-                            f"Skipping {real_path} (excluded)"
-                        )
+                        self.progress.console.print(f"Skipping {real_path} (excluded)")
                         continue
 
                 # Check if file is already downloaded
@@ -246,8 +241,12 @@ class DownloaderWorker(Thread):
     help="Exclude files matching the given pattern",
     multiple=True,
 )
+@click.option("--decryption-key-file", help="Key file to use for decryption", default=None)
 @click.option(
-    "--decryption-key-file", help="Key file to use for decryption", default=None
+    "--include-uploading",
+    help="Include backups that are still uploading",
+    is_flag=True,
+    default=False,
 )
 def download(
     token_file: str,
@@ -256,8 +255,9 @@ def download(
     threads: int,
     save_files_list: bool,
     save_backup_metadata: bool,
-    exclude_pattern: tuple[str],
+    exclude_pattern: Tuple[str],
     decryption_key_file: str,
+    include_uploading: bool,
 ):
     # Check for token file or master token
     if not token_file and not master_token:
@@ -277,16 +277,27 @@ def download(
     else:
         token = None
 
+    android_id = None
+
     # Check for master token
     if master_token:
-        if not pathlib.Path(master_token).exists():
+        master_token_filepath = pathlib.Path(master_token)
+        if not master_token_filepath.exists():
             print(f"Master token file {master_token} not found", file=sys.stderr)
             print("Run `wabdd token` to generate a master token", file=sys.stderr)
             sys.exit(1)
 
         # Load master token
-        with open(master_token) as f:
+        with open(master_token_filepath) as f:
             master_token = f.read().strip()
+
+        # Try to load corresponding Android ID file
+        android_id_filepath = master_token_filepath.parent / (
+            master_token_filepath.stem.replace("_mastertoken", "") + ANDROID_ID_SUFFIX
+        )
+        if android_id_filepath.exists():
+            with open(android_id_filepath) as f:
+                android_id = f.read().strip()
 
     # Load decryption key
     decryption_key = None
@@ -299,7 +310,7 @@ def download(
             decryption_key = Key15(key_bytes)
 
     # Initialize client
-    wa = WaBackup(token, master_token)
+    wa = WaBackup(token, master_token, android_id)
 
     # Get backups
     try:
@@ -312,7 +323,7 @@ def download(
     # Filter out backups that are still uploading
     backups = []
     for backup in _backups:
-        if "activeTransactionId" in backup:
+        if "activeTransactionId" in backup and not include_uploading:
             print(f"Backup {backup['name']} is still uploading, skipping")
             print(json.dumps(backup, indent=2))
             continue
@@ -371,7 +382,8 @@ def download(
     is_encrypted_backup = backup_metadata.get("encryptedBackupEnabled", False)
     if len(exclude_pattern) > 0 and is_encrypted_backup and decryption_key is None:
         print(
-            "WARNING: --exclude patterns will not work with encrypted backups without a decryption key. Please provide the decryption key file with --decryption-key-file",
+            "WARNING: --exclude patterns will not work with encrypted backups without a decryption key."
+            "Please provide the decryption key file with --decryption-key-file",
             file=sys.stderr,
         )
 
@@ -384,9 +396,7 @@ def download(
     if not output:
         timestamp = datetime.strptime(backup["updateTime"], "%Y-%m-%dT%H:%M:%S.%fZ")
         output_dir = (
-            pathlib.Path.cwd()
-            / BACKUP_FOLDER
-            / f"{backup['name'].split('/')[-1]}_{timestamp.strftime('%Y%m%d')}"
+            pathlib.Path.cwd() / BACKUP_FOLDER / f"{backup['name'].split('/')[-1]}_{timestamp.strftime('%Y%m%d')}"
         )
     else:
         output_dir = pathlib.Path(output)
@@ -433,9 +443,7 @@ def download(
         TimeRemainingColumn(),
     )
 
-    overall_progress = Progress(
-        TimeElapsedColumn(), BarColumn(bar_width=None), TextColumn("{task.description}")
-    )
+    overall_progress = Progress(TimeElapsedColumn(), BarColumn(bar_width=None), TextColumn("{task.description}"))
 
     group = Group(
         Panel(
@@ -486,9 +494,7 @@ def download(
             )
 
         file_retrieval_progress.stop_task(task_id)
-        file_retrieval_progress.update(
-            task_id, description=f"[bold green]All {len(files)} files retrieved!"
-        )
+        file_retrieval_progress.update(task_id, description=f"[bold green]All {len(files)} files retrieved!")
 
         # Debug
         if save_files_list:
@@ -505,9 +511,7 @@ def download(
         )
         already_created = set()
         for file in files:
-            target: pathlib.Path = (
-                output_dir / pathlib.Path(*file["path"].split("/")[5:]).parent
-            )
+            target: pathlib.Path = output_dir / pathlib.Path(*file["path"].split("/")[5:]).parent
 
             # Skip if already created
             if target in already_created:
@@ -530,9 +534,7 @@ def download(
             description=f"{steps[current_step]} ({current_step + 1}/{len(steps)})",
         )
 
-        overall_download_task_id = download_overall_progress.add_task(
-            "Downloading files...", total=len(files)
-        )
+        overall_download_task_id = download_overall_progress.add_task("Downloading files...", total=len(files))
 
         queue = Queue()
         for file in files:

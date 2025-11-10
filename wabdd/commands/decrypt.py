@@ -20,6 +20,7 @@ import zlib
 from datetime import datetime
 from queue import Queue
 from threading import Event, Thread
+from typing import Tuple
 
 import click
 from Cryptodome.Cipher import AES
@@ -47,7 +48,7 @@ class DecryptionWorker(Thread):
         self,
         queue: Queue,
         output: pathlib.Path,
-        overall_progress: tuple[Progress, TaskID],
+        overall_progress: Tuple[Progress, TaskID],
         key: Key15,
     ):
         super().__init__()
@@ -82,13 +83,9 @@ class DecryptionWorker(Thread):
 
                 # Decrypt file
                 if file.suffix == ".mcrypt1":
-                    output_file, decrypted_data, file_timestamp = decrypt_mcrypt1_file(
-                        folder, file, self.key
-                    )
+                    output_file, decrypted_data, file_timestamp = decrypt_mcrypt1_file(folder, file, self.key)
                 elif file.suffix == ".crypt15":
-                    output_file, decrypted_data, file_timestamp = decrypt_crypt15_file(
-                        folder, file, self.key
-                    )
+                    output_file, decrypted_data, file_timestamp = decrypt_crypt15_file(folder, file, self.key)
                 else:
                     # Copy unsupported files
                     self.overall_progress.console.print(f"Unsupported file: {file}")
@@ -106,9 +103,7 @@ class DecryptionWorker(Thread):
                     os.utime((self.output / output_file), (timestamp, timestamp))
 
             except Exception as e:
-                self.overall_progress.console.print(
-                    f"Error in {self.ERROR_FOLDER} {self.ERROR_FILE}"
-                )
+                self.overall_progress.console.print(f"Error in {self.ERROR_FOLDER} {self.ERROR_FILE}")
                 self.overall_progress.console.print(f"Error: {e}")
                 self.overall_progress.console.print(traceback.format_exc())
                 self.is_running = False
@@ -131,7 +126,7 @@ def decrypt_metadata(metadata_file: pathlib.Path, key: Key15):
 
 def decrypt_mcrypt1_file(
     dump_folder: pathlib.Path, encrypted_file: pathlib.Path, key: Key15
-) -> tuple[pathlib.Path, bytes, datetime]:
+) -> Tuple[pathlib.Path, bytes, datetime]:
     # Get filename without `.mcrypt1` extension and convert to bytes
     decryption_hash = bytes.fromhex(encrypted_file.with_suffix("").name)
     decryption_data = encryptionloop(
@@ -162,7 +157,7 @@ def decrypt_mcrypt1_file(
 
 def decrypt_crypt15_file(
     dump_folder: pathlib.Path, encrypted_file: pathlib.Path, key: Key15
-) -> tuple[pathlib.Path, bytes, None]:
+) -> Tuple[pathlib.Path, bytes, None]:
     output_file = encrypted_file.relative_to(dump_folder)
 
     # Remove .crypt15 extension
@@ -204,9 +199,7 @@ def decrypt(ctx, key, key_file):
         sys.exit(1)
 
     if key is not None and key_file is not None:
-        print(
-            "Please provide either a --key or a --key-file, not both", file=sys.stderr
-        )
+        print("Please provide either a --key or a --key-file, not both", file=sys.stderr)
         sys.exit(1)
 
     if key_file is not None:
@@ -302,9 +295,7 @@ def cmd_decrypt_dump(obj, folder, output, threads):
 
             queue.put((folder, file))
 
-        overall_download_task_id = download_overall_progress.add_task(
-            "Decrypting files...", total=queue.qsize()
-        )
+        overall_download_task_id = download_overall_progress.add_task("Decrypting files...", total=queue.qsize())
 
         # Start workers
         workers = []
