@@ -50,6 +50,7 @@ class DecryptionWorker(Thread):
         output: pathlib.Path,
         overall_progress: Tuple[Progress, TaskID],
         key: Key15,
+        ignore_metadata_errors: bool = False,
     ):
         super().__init__()
         self.queue = queue
@@ -57,6 +58,7 @@ class DecryptionWorker(Thread):
         self.overall_progress = overall_progress[0]
         self.overall_task = overall_progress[1]
         self.key = key
+        self.ignore_metadata_errors = ignore_metadata_errors
 
         self.is_running = True
 
@@ -83,7 +85,9 @@ class DecryptionWorker(Thread):
 
                 # Decrypt file
                 if file.suffix == ".mcrypt1":
-                    output_file, decrypted_data, file_timestamp = decrypt_mcrypt1_file(folder, file, self.key)
+                    output_file, decrypted_data, file_timestamp = decrypt_mcrypt1_file(
+                        folder, file, self.key, self.ignore_metadata_errors
+                    )
                 elif file.suffix == ".crypt15":
                     output_file, decrypted_data, file_timestamp = decrypt_crypt15_file(folder, file, self.key)
                 else:
@@ -125,8 +129,8 @@ def decrypt_metadata(metadata_file: pathlib.Path, key: Key15):
 
 
 def decrypt_mcrypt1_file(
-    dump_folder: pathlib.Path, encrypted_file: pathlib.Path, key: Key15
-) -> Tuple[pathlib.Path, bytes, datetime]:
+    dump_folder: pathlib.Path, encrypted_file: pathlib.Path, key: Key15, ignore_metadata_errors: bool = False
+) -> Tuple[pathlib.Path, bytes, datetime | None]:
     # Get filename without `.mcrypt1` extension and convert to bytes
     decryption_hash = bytes.fromhex(encrypted_file.with_suffix("").name)
     decryption_data = encryptionloop(
@@ -143,15 +147,22 @@ def decrypt_mcrypt1_file(
     # Get metadata
     output_file = encrypted_file.with_suffix("")
     metadata_file = encrypted_file.with_suffix(".mcrypt1-metadata")
+    file_timestamp = None
     if metadata_file.is_file():
         metadata = decrypt_metadata(metadata_file, key)
         output_file = pathlib.Path(metadata["name"])
+        file_timestamp = datetime.fromisoformat(metadata["updateTime"])
+    elif ignore_metadata_errors:
+        # Use the encrypted filename without extension as fallback
+        output_file = encrypted_file.relative_to(dump_folder).with_suffix("")
+    else:
+        raise FileNotFoundError(f"Metadata file not found for {encrypted_file}")
 
     with open(encrypted_file, "rb") as f:
         return (
             output_file,
             cipher.decrypt(f.read()),
-            datetime.fromisoformat(metadata["updateTime"]),
+            file_timestamp,
         )
 
 
@@ -226,8 +237,9 @@ def decrypt(ctx, key, key_file):
 @click.argument("folder", type=click.Path(exists=True))
 @click.option("--output", help="Output directory", default=None)
 @click.option("--threads", help="Number of threads to use", default=2)
+@click.option("--ignore-metadata-errors", is_flag=True, help="Continue decryption even when metadata files are missing")
 @click.pass_obj
-def cmd_decrypt_dump(obj, folder, output, threads):
+def cmd_decrypt_dump(obj, folder, output, threads, ignore_metadata_errors):
     key = obj
     folder = pathlib.Path(folder)
 
@@ -308,6 +320,7 @@ def cmd_decrypt_dump(obj, folder, output, threads):
                 output,
                 (download_overall_progress, overall_download_task_id),
                 key,
+                ignore_metadata_errors,
             )
             worker.start()
             workers.append(worker)
