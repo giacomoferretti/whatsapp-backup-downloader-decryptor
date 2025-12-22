@@ -34,13 +34,13 @@
 3. Download backup
 
     ```shell
-    wabdd download --token-file /tokens/YOUR_GOOGLE_EMAIL_ADDRESS_token.txt
+    wabdd download --master-token /full/path/to/tokens/YOUR_GOOGLE_EMAIL_ADDRESS_mastertoken.txt
     ```
 
     or with filters (e.g. excluding videos)
 
     ```shell
-    wabdd download --exclude "Media/WhatsApp Video/*" --token-file /tokens/YOUR_GOOGLE_EMAIL_ADDRESS_token.txt
+    wabdd download --exclude "Media/WhatsApp Video/*" --master-token /full/path/to/tokens/YOUR_GOOGLE_EMAIL_ADDRESS_mastertoken.txt
 
 4. Decrypt backup (only if end-to-end encryption is enabled)
 
