@@ -18,6 +18,7 @@ import json
 import pathlib
 import sys
 import traceback
+import os
 from datetime import datetime
 from queue import Queue
 from threading import Event, Thread
@@ -95,6 +96,7 @@ class DownloaderWorker(Thread):
         client: WaBackup,
         exclude_pattern: Optional[Tuple[str]] = None,
         decryption_key: Optional[Key15] = None,
+        chunksize: Optional[int] = 8192,
     ):
         super().__init__()
         self.queue = queue
@@ -105,6 +107,8 @@ class DownloaderWorker(Thread):
         self.client = client
         self.exclude_pattern = exclude_pattern
         self.decryption_key = decryption_key
+        # add option to set chunksize to speed up google drive operations
+        self.chunksize = chunksize
 
         self.is_running = True
 
@@ -186,12 +190,23 @@ class DownloaderWorker(Thread):
                     r.raise_for_status()
                     with open(local_file, "wb") as f:
                         self.progress.start_task(self.task_id)
-                        for chunk in r.iter_content(chunk_size=8192):
+                        for chunk in r.iter_content(chunk_size=self.chunksize):
                             if _stop_event.is_set():  # Exit early if stop event is set
                                 return
 
                             self.progress.update(self.task_id, advance=len(chunk))
                             f.write(chunk)
+
+                    # add set date time file update as in remote
+                    # usefull as you could know when media was created
+                    update_time_str = file['updated']    
+                    if update_time_str.endswith('Z'):
+                        update_time_str = update_time_str[:-1]
+        
+                    dt = datetime.fromisoformat(update_time_str)
+                    timestamp = dt.timestamp()
+        
+                    os.utime(local_file, (timestamp, timestamp))
 
                 # Write metadata if available
                 if metadata:
@@ -248,6 +263,12 @@ class DownloaderWorker(Thread):
     is_flag=True,
     default=False,
 )
+@click.option(
+    "--chunksize",
+    help="Chunk size (in Megabit) to use when downloading", 
+    type=click.Choice([8, 16, 32, 64, 128, 256, 512],case_sensitive=False), 
+    default=8
+)
 def download(
     token_file: str,
     master_token: str,
@@ -258,12 +279,31 @@ def download(
     exclude_pattern: Tuple[str],
     decryption_key_file: str,
     include_uploading: bool,
+    chunksize: int,
 ):
     # Check for token file or master token
     if not token_file and not master_token:
         print("Please provide a token file or a master token", file=sys.stderr)
         sys.exit(1)
 
+    match chunksize:
+        case 8:
+            chunksize = 8192
+        case 16:
+            chunksize = 16384
+        case 32:
+            chunksize = 32768
+        case 64:
+            chunksize = 65536
+        case 128:
+            chunksize = 131072
+        case 256:
+            chunksize = 262144
+        case 512:
+            chunksize = 524288
+        case _:
+            chunksize = 8192
+    print(f"Using chunksize: {chunksize}")
     # Check for token
     if token_file:
         if not pathlib.Path(token_file).exists():
@@ -486,6 +526,7 @@ def download(
                     "hash": base64.b64decode(file.get("md5Hash")),
                     "size": int(file.get("sizeBytes")),
                     "metadata": file.get("metadata"),
+                    "updated": file.get("updateTime"),
                 }
             )
             file_retrieval_progress.update(
@@ -553,6 +594,7 @@ def download(
                 wa,
                 exclude_pattern,
                 decryption_key,
+                chunksize,
             )
             worker.start()
             workers.append(worker)
