@@ -1,0 +1,36 @@
+# Runs in the context of the base repository after CI completes, so it can
+# comment on pull requests from forks. It never checks out or runs PR code:
+# it only parses the JUnit XML artifacts uploaded by CI.
+name: Test Results
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  test-results:
+    runs-on: ubuntu-latest
+    # Dependabot-triggered runs only get a read-only token
+    if: >-
+      github.event.workflow_run.conclusion != 'skipped' &&
+      github.event.workflow_run.actor.login != 'dependabot[bot]'
+    permissions:
+      actions: read
+      checks: write
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: artifacts
+
+      - uses: EnricoMi/publish-unit-test-result-action@d0a4676d0e0b938bc201470d88276b7c74c712b3 # v2.24.0
+        with:
+          commit: ${{ github.event.workflow_run.head_sha }}
+          event_file: artifacts/event-file/event.json
+          event_name: ${{ github.event.workflow_run.event }}
+          files: artifacts/test-results-*/*.xml
