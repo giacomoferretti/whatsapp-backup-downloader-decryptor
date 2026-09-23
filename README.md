@@ -34,19 +34,45 @@
 3. Download backup
 
     ```shell
-    wabdd download --token-file /tokens/YOUR_GOOGLE_EMAIL_ADDRESS_token.txt
+    wabdd download --token-file tokens/YOUR_GOOGLE_EMAIL_ADDRESS_token.txt
     ```
 
     or with filters (e.g. excluding videos)
 
     ```shell
-    wabdd download --exclude "Media/WhatsApp Video/*" --token-file /tokens/YOUR_GOOGLE_EMAIL_ADDRESS_token.txt
+    wabdd download --exclude "Media/WhatsApp Video/*" --token-file tokens/YOUR_GOOGLE_EMAIL_ADDRESS_token.txt
+    ```
 
 4. Decrypt backup (only if end-to-end encryption is enabled)
 
     ```shell
     wabdd decrypt --key-file keys/PHONE_NUMBER_decryption.key dump backups/PHONE_NUMBER_DATE
     ```
+
+### Using Docker
+
+Images are published to GitHub Container Registry for `linux/amd64` and `linux/arm64`. Run them from the directory where you want `tokens`, `backups` and `keys` to live: it is mounted as the working directory.
+
+1. Get token
+
+    ```shell
+    docker run -it --rm --user "$(id -u):$(id -g)" -v "$PWD:/data" ghcr.io/giacomoferretti/wabdd token YOUR_GOOGLE@EMAIL.ADDRESS
+    ```
+
+2. Download backup
+
+    ```shell
+    docker run -it --rm --user "$(id -u):$(id -g)" -v "$PWD:/data" ghcr.io/giacomoferretti/wabdd download --token-file tokens/YOUR_GOOGLE_EMAIL_ADDRESS_token.txt
+    ```
+
+3. Decrypt backup (only if end-to-end encryption is enabled)
+
+    ```shell
+    docker run -it --rm --user "$(id -u):$(id -g)" -v "$PWD:/data" ghcr.io/giacomoferretti/wabdd decrypt --key-file keys/PHONE_NUMBER_decryption.key dump backups/PHONE_NUMBER_DATE
+    ```
+
+- Use a version tag (e.g. `ghcr.io/giacomoferretti/wabdd:0.1.8`) to pin a release, or `edge` for the latest `main`
+- On SELinux systems (Fedora, RHEL), append `:Z` to the volume: `-v "$PWD:/data:Z"`
 
 ### Getting the 64-digit encryption key
 
@@ -143,37 +169,11 @@ If you can't donate, I also appreciate **stars** ⭐ on my repositories!
 3. Download backup
 
     ```shell
-    poetry run wabdd download --token-file /tokens/YOUR_GOOGLE_EMAIL_ADDRESS_token.txt
+    poetry run wabdd download --token-file tokens/YOUR_GOOGLE_EMAIL_ADDRESS_token.txt
     ```
 
 4. Decrypt backup
 
     ```shell
     poetry run wabdd decrypt --key-file keys/PHONE_NUMBER_decryption.key dump backups/PHONE_NUMBER_DATE
-    ```
-
-### Using Docker
-
-1. Build docker image
-
-    ```shell
-    docker build . -t wabdd:0.1.5
-    ```
-
-2. Get token
-
-    ```shell
-    docker run -it --rm --user $(id -u):$(id -g) -v $(pwd)/tokens:/tokens wabdd:0.1.5 token YOUR_GOOGLE@EMAIL.ADDRESS
-    ```
-
-3. Download backup
-
-    ```shell
-    docker run -it --rm --user $(id -u):$(id -g) -v $(pwd)/backups:/backups -v $(pwd)/tokens:/tokens wabdd:0.1.5 download --token-file /tokens/YOUR_GOOGLE_EMAIL_ADDRESS_token.txt
-    ```
-
-4. Decrypt backup
-
-    ```shell
-    docker run -it --rm --user $(id -u):$(id -g) -v $(pwd)/backups:/backups -v $(pwd)/keys:/keys wabdd:0.1.5 decrypt --key-file keys/PHONE_NUMBER_decryption.key dump backups/PHONE_NUMBER_DATE
     ``` -->
