@@ -30,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: astral-sh/setup-uv@v10.2.0
@@ -39,4 +39,20 @@ jobs:
           enable-cache: true
       - run: uv sync --locked --all-groups
       # Override addopts to skip the local HTML coverage report
-      - run: uv run pytest -o addopts="" --cov=wabdd --cov-report=term-missing tests
+      - run: >-
+          uv run pytest -o addopts="" --cov=wabdd --cov-report=term-missing
+          --junitxml=junit/test-results-${{ matrix.python-version }}.xml tests
+      # Consumed by test-results.yml to publish results on the PR
+      - uses: actions/upload-artifact@v7.0.1
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-${{ matrix.python-version }}
+          path: junit/*.xml
+
+  event-file:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/upload-artifact@v7.0.1
+        with:
+          name: event-file
+          path: ${{ github.event_path }}
